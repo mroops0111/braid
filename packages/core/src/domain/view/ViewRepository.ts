@@ -12,17 +12,14 @@ export interface StoredView {
 /**
  * Where a written view and the material it was written from are kept.
  *
- * A view is written by the run that rendered it,
- * and is derived from the graph rather than authored,
+ * A view is written by the run that rendered it, and is derived from the graph rather than authored,
  * so nothing a reader does changes one.
  */
 export interface ViewRepository {
   list: (workspace: Workspace) => Promise<readonly StoredView[]>
   /**
-   * The blocks at a path under the views directory,
-   * or nothing where there is no such view.
-   * A path escaping the directory is nothing rather than an error,
-   * since a caller chose the string,
+   * The blocks at a path under the views directory, or nothing where there is no such view.
+   * A path escaping the directory is nothing rather than an error, since a caller chose the string,
    * and neither outcome should read any file it can reach.
    */
   read: (workspace: Workspace, path: string) => Promise<readonly EmittedBlock[] | undefined>

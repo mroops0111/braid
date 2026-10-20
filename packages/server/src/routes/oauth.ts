@@ -39,12 +39,10 @@ interface PendingFlow {
 }
 
 /**
- * One connectable OAuth provider. It owns the two flow-specific steps,
- * begin and complete, plus the labels the router needs.
- * Adding a provider means adding one descriptor to `providersOf`,
- * both routers register it without change.
- * `begin` is absent when the provider's server env is unset,
- * so its start route answers 503.
+ * One connectable OAuth provider.
+ * It owns the two flow-specific steps, begin and complete, plus the labels the router needs.
+ * Adding a provider means adding one descriptor to `providersOf`, both routers register it without change.
+ * `begin` is absent when the provider's server env is unset, so its start route answers 503.
  */
 interface OAuthProvider {
   readonly id: OAuthProviderInfo['id']
@@ -57,8 +55,7 @@ interface OAuthProvider {
 
 /**
  * In-process store of pending OAuth flows, keyed by the state token.
- * The start and callback routers mount at different prefixes,
- * so they share one instance,
+ * The start and callback routers mount at different prefixes, so they share one instance,
  * and a flow opened by `start` is resolved by `callback`.
  * A flow is short-lived, one browser round-trip, and a restart cancels it.
  * SaaS deployments should swap this for a shared store.
@@ -91,8 +88,10 @@ export interface OAuthRouterDeps {
   readonly flowStore: OAuthFlowStore
   readonly google?: GoogleOAuth
   readonly github?: GitHubOAuth
-  // Used by the start router to gate an existing workspace,
-  // and to record who connected. Absent in in-memory tests, which skip the gate.
+  /**
+   * Used by the start router to gate an existing workspace, and to record who connected.
+   * Absent in in-memory tests, which skip the gate.
+   */
   readonly userRegistry?: UserRegistryFile
   readonly workspaceService?: WorkspaceService
   readonly workspaceRegistry?: WorkspaceRegistryFile
@@ -137,11 +136,10 @@ function providersOf(deps: OAuthRouterDeps): readonly OAuthProvider[] {
 }
 
 /**
- * Source-connection start routes. `workspace.write` is owner-only,
- * so only an owner connects or reconnects a source on an existing workspace,
+ * Source-connection start routes.
+ * `workspace.write` is owner-only, so only an owner connects or reconnects a source on an existing workspace,
  * and the authorising member is recorded as `connectedBy`.
- * A not-yet-scaffolded workspace is allowed,
- * since the Wizard connects a source before it creates the workspace,
+ * A not-yet-scaffolded workspace is allowed, since the Wizard connects a source before it creates the workspace,
  * and the caller becomes its owner.
  */
 export function createOAuthStartRouter(deps: OAuthRouterDeps): HonoType {
@@ -165,8 +163,7 @@ export function createOAuthStartRouter(deps: OAuthRouterDeps): HonoType {
  * Gate a connect on `workspace.write` when the workspace exists,
  * allow it before scaffold, and return who is connecting.
  * Returns undefined in the in-memory composition,
- * which wires no user or workspace registry and stays open,
- * matching how the other workspace routes behave there.
+ * which wires no user or workspace registry and stays open, matching how the other workspace routes behave there.
  */
 async function authoriseConnect(deps: OAuthRouterDeps, workspaceId: string, userId: UserId): Promise<ConnectedBy | undefined> {
   if (!deps.userRegistry || !deps.workspaceService || !deps.workspaceRegistry)
@@ -195,8 +192,7 @@ async function findWorkspaceOrUndefined(service: WorkspaceService, workspaceId: 
 }
 
 /**
- * OAuth callback routes, mounted at `/oauth`,
- * so the redirect URI stays one fixed path per provider,
+ * OAuth callback routes, mounted at `/oauth`, so the redirect URI stays one fixed path per provider,
  * which is what the OAuth app registers.
  * The state token carries the flow back to its workspace and source.
  */

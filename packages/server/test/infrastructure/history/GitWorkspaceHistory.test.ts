@@ -34,8 +34,7 @@ describe('GitWorkspaceHistory', () => {
       expect(existsSync(join(root, '.git'))).toBe(true)
       expect(existsSync(join(root, '.gitignore'))).toBe(true)
       const gitignore = await readFile(join(root, '.gitignore'), 'utf-8')
-      // `.braid/` holds the Kùzu DB (per @braidhq/storage-kuzu's
-      // path layout) plus any other plugin-local caches.
+      // `.braid/` holds the Kùzu DB (per @braidhq/storage-kuzu's path layout) plus any other plugin-local caches.
       expect(gitignore).toContain('.braid/')
       expect(gitignore).toContain('artifacts/runs/')
       // Sources land at the role-derived paths and are re-fetchable.

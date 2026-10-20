@@ -17,8 +17,7 @@ const runningCache = new Map<string, readonly string[]>()
 /**
  * The skills with a run going, as a subscription.
  *
- * The snapshot is cached against the last one,
- * since `useSyncExternalStore` compares by identity,
+ * The snapshot is cached against the last one, since `useSyncExternalStore` compares by identity,
  * and a fresh array every render reads as a change that never settles.
  */
 export function useRunningSkills(workspaceId: string | null): readonly string[] {
@@ -71,15 +70,11 @@ const EMPTY_CONVERSATION: ConversationView = Object.freeze({
 })
 
 /**
- * Aggregated view of the conversation shown in the Skills panel,
- * for `(workspaceId, skillId)`.
- * It concatenates events across every turn,
- * so the transcript reads top-to-bottom like a normal chat.
+ * Aggregated view of the conversation shown in the Skills panel, for `(workspaceId, skillId)`.
+ * It concatenates events across every turn, so the transcript reads top-to-bottom like a normal chat.
  *
- * Snapshots are cached,
- * so `useSyncExternalStore` sees a stable reference when nothing changed.
- * Otherwise React 19 treats every render as a state change,
- * and warns about infinite re-renders.
+ * Snapshots are cached, so `useSyncExternalStore` sees a stable reference when nothing changed.
+ * Otherwise React 19 treats every render as a state change, and warns about infinite re-renders.
  */
 export function useConversation(workspaceId: string | null, skillId: string | null): ConversationView {
   return useSyncExternalStore(

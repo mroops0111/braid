@@ -7,8 +7,7 @@ export interface DocumentGroup {
   readonly views: readonly GeneratedView[]
   /**
    * Whether the graph has moved on since these were written.
-   * Said over the subject rather than over each form,
-   * because one subject projects into one material,
+   * Said over the subject rather than over each form, because one subject projects into one material,
    * so every form of it goes out of date together or not at all.
    */
   readonly stale: boolean
@@ -18,10 +17,8 @@ export interface DocumentGroup {
  * The documents a reader has, gathered under whatever each was written from.
  *
  * A flat list of paths makes a reader parse a filename to know what it is,
- * and says nothing about the node it came from,
- * which is the thing they would think of it by.
- * The subject written to most recently leads,
- * since a reader coming back is usually coming back to what they just made.
+ * and says nothing about the node it came from, which is the thing they would think of it by.
+ * The subject written to most recently leads, since a reader coming back is usually coming back to what they just made.
  */
 export function documentsFrom(views: readonly GeneratedView[]): readonly DocumentGroup[] {
   const gathered = new Map<string, GeneratedView[]>()
@@ -59,12 +56,9 @@ export interface DocumentShelf {
 /**
  * The documents a reader has, shelved by what kind of thing each is about.
  *
- * The shelf comes from the ontology,
- * rather than from anything a person put there,
- * so a graph declaring two kinds of container gets two shelves,
- * without this surface learning either name.
- * A flat list is the honest answer while there is only one kind,
- * and the caller draws no heading in that case.
+ * The shelf comes from the ontology, rather than from anything a person put there,
+ * so a graph declaring two kinds of container gets two shelves, without this surface learning either name.
+ * A flat list is the honest answer while there is only one kind, and the caller draws no heading in that case.
  */
 export function shelvesOf(
   groups: readonly DocumentGroup[],
@@ -86,8 +80,7 @@ export function shelvesOf(
 /**
  * Whether a document answers to what the reader typed.
  *
- * Matched against the name they would think of it by,
- * and the id they would paste,
+ * Matched against the name they would think of it by, and the id they would paste,
  * since both are things a person reaches for.
  */
 export function matchesQuery(group: DocumentGroup, name: string, query: string): boolean {

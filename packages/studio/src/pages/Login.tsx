@@ -7,22 +7,18 @@ import { api, ApiError } from '@/lib/api'
 interface LoginPageProps {
   /**
    * Surfaced when the callback redirect lands with `#auth-error=…`.
-   * Shown above the Sign-in button,
-   * so the user knows why they are back on the Login page.
+   * Shown above the Sign-in button, so the user knows why they are back on the Login page.
    */
   initialError?: string | null
 }
 
 /**
- * Gate shown when the remote server requires authentication,
- * and the Studio has no Bearer token.
+ * Gate shown when the remote server requires authentication, and the Studio has no Bearer token.
  *
- * Single-button flow. Click "Sign in with Google",
- * the server returns a consent URL, and the browser navigates there.
- * Google calls the server callback, which redirects back here,
- * with `#token=<value>` or `#auth-error=<value>`.
- * The hash is consumed by `consumeOAuthRedirect` in App.tsx,
- * before this page is rendered.
+ * Single-button flow.
+ * Click "Sign in with Google", the server returns a consent URL, and the browser navigates there.
+ * Google calls the server callback, which redirects back here, with `#token=<value>` or `#auth-error=<value>`.
+ * The hash is consumed by `consumeOAuthRedirect` in App.tsx, before this page is rendered.
  */
 export function LoginPage({ initialError }: LoginPageProps) {
   const { t } = useTranslation()
@@ -79,8 +75,7 @@ export function LoginPage({ initialError }: LoginPageProps) {
                 >
                   {starting
                     ? t('shell.login.redirecting')
-                    // Google is Braid's own client,
-                    // so the button can name it.
+                    // Google is Braid's own client, so the button can name it.
                     // Any other provider is the deployment's to name,
                     // and guessing would put the wrong logo on the door.
                     : config.loginProvider === 'google'

@@ -26,8 +26,7 @@ export interface SourcePollingServiceDeps {
   readonly clock: Clock
   readonly logger: Logger
   /**
-   * A busy workspace is skipped, not waited on,
-   * since holding a background pass for the length of a run buys nothing.
+   * A busy workspace is skipped, not waited on, since holding a background pass for the length of a run buys nothing.
    * Absent means never skip.
    */
   readonly isWorkspaceBusy?: (workspaceId: WorkspaceId) => boolean
@@ -36,13 +35,12 @@ export interface SourcePollingServiceDeps {
 }
 
 /**
- * One timer per workspace, not per source. Each tick re-reads the manifest,
- * so an added or removed source needs no config-change listener,
+ * One timer per workspace, not per source.
+ * Each tick re-reads the manifest, so an added or removed source needs no config-change listener,
  * and the timer count does not grow with the repo count.
  *
  * Correctness does not depend on this service.
- * `ensureFresh` enforces the budget when a source is read,
- * so a stopped poller costs latency, never staleness.
+ * `ensureFresh` enforces the budget when a source is read, so a stopped poller costs latency, never staleness.
  */
 export class SourcePollingService {
   private readonly timers = new Map<WorkspaceId, ScheduledTask>()
@@ -138,8 +136,7 @@ export class SourcePollingService {
       )
     }
     // Re-arm only while still started, so `stop` during a tick ends the loop.
-    // Re-arming after the pass, not on a fixed period,
-    // keeps a slow refresh from stacking ticks behind it.
+    // Re-arming after the pass, not on a fixed period, keeps a slow refresh from stacking ticks behind it.
     if (this.timers.has(workspaceId))
       await this.arm(workspaceId)
   }
@@ -150,14 +147,12 @@ export class SourcePollingService {
       const budgets = workspace.managedSources().map(source => source.sync.maxStalenessMs)
       if (budgets.length === 0)
         return MAXIMUM_TICK_MS
-      // A quarter of the tightest budget,
-      // so a source is checked several times inside its window,
+      // A quarter of the tightest budget, so a source is checked several times inside its window,
       // and the warm threshold is not overshot by a whole tick.
       return clamp(Math.min(...budgets) / 4, MINIMUM_TICK_MS, MAXIMUM_TICK_MS)
     }
     catch {
-      // A workspace that cannot be read right now, e.g. mid-rename,
-      // should not kill the loop.
+      // A workspace that cannot be read right now, e.g. mid-rename, should not kill the loop.
       // Back off to the slowest cadence and look again.
       return MAXIMUM_TICK_MS
     }
@@ -165,8 +160,7 @@ export class SourcePollingService {
 }
 
 /**
- * How long a source may sit before the poller warms it,
- * somewhere between half and all of its budget.
+ * How long a source may sit before the poller warms it, somewhere between half and all of its budget.
  * Spreading it keeps a dozen repos off one remote in the same instant,
  * and warming before the budget expires is what stops a run waiting.
  *

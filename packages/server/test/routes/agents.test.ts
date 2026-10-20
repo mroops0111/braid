@@ -31,8 +31,7 @@ describe('GET /agents', () => {
     })
   })
 
-  // A deployment may register a second agent,
-  // and a skill may name it, so both owe the reader a credential field.
+  // A deployment may register a second agent, and a skill may name it, so both owe the reader a credential field.
   it('lists every registered agent, not only the configured default', async () => {
     const response = await router(
       agentPlugin('claude-code', 'claude setup-token'),
@@ -43,8 +42,7 @@ describe('GET /agents', () => {
   })
 
   // The field is optional.
-  // A page that reads it must cope with absence,
-  // rather than printing an instruction the agent never gave.
+  // A page that reads it must cope with absence, rather than printing an instruction the agent never gave.
   it('omits the command for an agent that declares none', async () => {
     const response = await router(agentPlugin('codex')).request('/')
     expect(await response.json()).toEqual({ agents: [{ kind: 'codex' }] })

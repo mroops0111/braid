@@ -12,7 +12,7 @@ import { readJson } from '../helpers/readJson.js'
 interface ProposalRef { id: string }
 
 /**
- * Phase-2 wiring proof: HITLService's mutation paths must land real commits on the workspace's git repo.
+ * Proves the phase-2 wiring. HITLService's mutation paths must land real commits on the workspace's git repo.
  * This drives the whole stack (route to service to simple-git) instead of mocking history,
  * so we also catch any composition wiring regressions.
  */
@@ -83,8 +83,9 @@ describe('e2e history hooks: applying a proposal writes a commit', () => {
     const applied = await readJson<{ status: string }>(apply)
     expect(applied.status).toBe('applied')
 
-    // The real `.git/` should now hold an extra commit over the initial one. We hit simple-git directly,
-    // not the history routes, so the test pins the disk effect instead of tautologising on our own code.
+    // The real `.git/` should now hold an extra commit over the initial one.
+    // We hit simple-git directly, not the history routes,
+    // so the test pins the disk effect instead of tautologising on our own code.
     const git = simpleGit({ baseDir: workspaceRoot })
     const log = await git.log({ maxCount: 5 })
     expect(log.all.length).toBeGreaterThanOrEqual(2)

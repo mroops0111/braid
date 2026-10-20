@@ -4,8 +4,7 @@ import { dirname, join } from 'node:path'
 /**
  * Per-scope JSON secret storage on the local filesystem.
  * One file per `(namespace, key)` under `<root>/<namespace>/<key>.json`.
- * Files are written with mode 0600 so only the running user can read them,
- * the containing directory is mode 0700.
+ * Files are written with mode 0600 so only the running user can read them, the containing directory is mode 0700.
  *
  * This is NOT an encrypted-at-rest store.
  * It suits local, single-user Braid installs (the OSS target).

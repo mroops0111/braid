@@ -176,8 +176,7 @@ const deleteUserRoute = createRoute({
   },
 })
 
-// Every boot reseeds a service account's kind and role,
-// so an edit here reverts on the next restart.
+// Every boot reseeds a service account's kind and role, so an edit here reverts on the next restart.
 // Meanwhile the component fails its checks with nothing to signal it.
 function serviceAccountRefusal(userId: string): string {
   return `User "${userId}" is a service account. The server manages it, so its role and record cannot be changed.`
@@ -213,8 +212,7 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
       deps.workspaceService.list(),
       deps.workspaceRegistry.listAllWithMembers(),
     ])
-    // Map rootPath to workspaceId so each membership carries a human id,
-    // without exposing rootPath to the client.
+    // Map rootPath to workspaceId so each membership carries a human id, without exposing rootPath to the client.
     const idByRoot = new Map(workspaces.map(w => [w.rootPath, w.id]))
     const membershipByUser = new Map<string, Array<{ workspaceId: WorkspaceIdType, role: WorkspaceRoleType }>>()
     for (const entry of entries) {
@@ -249,8 +247,7 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
   router.openapi(deleteUserRoute, async (context) => {
     const { userId } = context.req.valid('param')
     const callerId = getUserId(context)
-    // Don't let an admin delete themselves,
-    // a single-admin server would lock itself out otherwise.
+    // Don't let an admin delete themselves, a single-admin server would lock itself out otherwise.
     if (userId === callerId) {
       return context.json(
         {
@@ -264,10 +261,8 @@ export function createAdminRouter(deps: AdminRouterDeps): OpenAPIHono {
       )
     }
     // Revoke persistent sign-in approval alongside the user record,
-    // so the same email can't sneak back in at the next /auth/google,
-    // without a fresh invite from an admin.
-    // Read the user first to grab their email,
-    // tolerated when missing for idempotency.
+    // so the same email can't sneak back in at the next /auth/google, without a fresh invite from an admin.
+    // Read the user first to grab their email, tolerated when missing for idempotency.
     const existing = await deps.userRegistry.get(userId)
     if (existing?.kind === 'service')
       throw new ValidationError(serviceAccountRefusal(userId))

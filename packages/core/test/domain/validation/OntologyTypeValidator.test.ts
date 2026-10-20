@@ -10,9 +10,8 @@ function snapshot(nodes: ModelSnapshot['nodes'], edges: ModelSnapshot['edges'] =
 }
 
 /**
- * Build a tiny custom ontology directly so the test proves the validator
- * works against any ontology, not just DDD. (The DDD plugin uses the
- * SDK builder, which is tested separately.)
+ * Build a tiny custom ontology directly so the test proves the validator works against any ontology, not just DDD.
+ * (The DDD plugin uses the SDK builder, which is tested separately.)
  */
 const tinyOntology = makeOntology({
   ontologyId: 'tiny',

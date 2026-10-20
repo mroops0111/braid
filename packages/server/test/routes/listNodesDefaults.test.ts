@@ -34,8 +34,7 @@ describe('listNodes defaults', () => {
       paths: Record<string, Record<string, { parameters: Parameter[] }>>
     }
     const parameters = spec.paths['/workspaces/{workspaceId}/nodes']!.get!.parameters
-    // A query parameter arrives as a string,
-    // but the schema says what it means,
+    // A query parameter arrives as a string, but the schema says what it means,
     // and a model reading `string` has to guess the spelling of true.
     expect(parameters.find(p => p.name === 'semantic')?.schema.type).toBe('boolean')
     // Descriptions are the whole of what a model has to go on,
@@ -54,18 +53,15 @@ describe('listNodes defaults', () => {
 
     const body = await (await app.request(`/workspaces/${WORKSPACE}/nodes`)).json() as NodeList
 
-    // Unfiltered, this endpoint used to return the whole graph.
+    // Unfiltered, the endpoint returns a default-sized page rather than the whole graph.
     expect(body.items).toHaveLength(20)
-    // And the caller can tell that it did,
-    // which decides whether to read on or to narrow the query.
+    // And the caller can tell that it did, which decides whether to read on or to narrow the query.
     expect(body.total).toBe(25)
   })
 
   it('ranks by meaning without being asked, where a backend can', async () => {
-    // No embedding service is wired here,
-    // so the flag is inert and the substring pass answers.
-    // What matters is that the default is on,
-    // so a caller gets the better ranking without knowing the parameter exists.
+    // No embedding service is wired here, so the flag is inert and the substring pass answers.
+    // What matters is that the default is on, so a caller gets the better ranking without knowing the parameter exists.
     const { app } = await buildTestApp()
     const spec = await (await app.request('/openapi.json')).json() as {
       paths: Record<string, Record<string, { parameters: (Parameter & { schema: { default?: unknown } })[] }>>

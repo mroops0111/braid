@@ -11,18 +11,17 @@ import { reactorCycleFilePath, reactorCyclesDir } from '../_shared/paths.js'
 
 export interface FsReactorCycleRepositoryOptions {
   /**
-   * Lookup of workspaceId to workspaceRoot. Shared with the other Fs repositories,
-   * so this repo doesn't introduce a separate dependency on `WorkspaceService`.
+   * Lookup of workspaceId to workspaceRoot.
+   * Shared with the other Fs repositories, so this repo doesn't introduce a separate dependency on `WorkspaceService`.
    * `composeFs.ts` builds a single closure once and passes it to every fs repo.
    */
   readonly workspaceRoots: () => Promise<ReadonlyMap<WorkspaceId, AbsolutePath>>
 }
 
 /**
- * Filesystem-backed `ReactorCycleRepository`. One JSON file per cycle,
- * at `artifacts/reactor-cycles/<cycleId>.json`.
- * Each save is an atomic rename,
- * so the Studio Activity page never reads a half-written file.
+ * Filesystem-backed `ReactorCycleRepository`.
+ * One JSON file per cycle, at `artifacts/reactor-cycles/<cycleId>.json`.
+ * Each save is an atomic rename, so the Studio Activity page never reads a half-written file.
  *
  * The file body is exactly the `ReactorCycle` shape, no wrapper or envelope.
  * A future SQLite or Postgres impl maps one file to one row keyed by `cycleId`,
@@ -47,8 +46,7 @@ export class FsReactorCycleRepository implements ReactorCycleRepository {
     try {
       const raw = await readFile(file, 'utf-8')
       const parsed = ReactorCycleSchema.parse(JSON.parse(raw))
-      // The directory layout is per-workspace already,
-      // but double-check the body matches, guarding the case,
+      // The directory layout is per-workspace already, but double-check the body matches, guarding the case,
       // where an operator copy-pasted in a file from another workspace.
       if (parsed.workspaceId !== workspaceId)
         return undefined
@@ -78,10 +76,8 @@ export class FsReactorCycleRepository implements ReactorCycleRepository {
           cycles.push(parsed)
       }
       catch {
-        // Skip files that fail validation, truncated half-writes,
-        // or manual edits gone wrong.
-        // Raising them as errors here would,
-        // in turn, block the Activity page from rendering recent cycles.
+        // Skip files that fail validation, truncated half-writes, or manual edits gone wrong.
+        // Raising them as errors here would, in turn, block the Activity page from rendering recent cycles.
       }
     }
     return cycles.sort((a, b) => b.startedAt.localeCompare(a.startedAt))

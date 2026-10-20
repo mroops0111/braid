@@ -6,8 +6,7 @@ import { createEmbeddingsRouter } from '../../src/routes/embeddings.js'
 
 /**
  * Mount the router where the app mounts it,
- * since the handlers read the workspace id from the context,
- * rather than from a raw param.
+ * since the handlers read the workspace id from the context, rather than from a raw param.
  */
 function appWith(embeddingService?: EmbeddingService) {
   const app = new OpenAPIHono()

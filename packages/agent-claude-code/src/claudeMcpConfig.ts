@@ -6,8 +6,7 @@ import process from 'node:process'
 // Shape claude expects in `--mcp-config <file>`.
 // The Streamable HTTP transport is `type: 'http'`,
 // the claude CLI's legacy name that predates the MCP 2025-06-18 spec rename.
-// PRODUCT.md uses the new name to match the spec,
-// this emits the legacy name so claude understands.
+// PRODUCT.md uses the new name to match the spec, this emits the legacy name so claude understands.
 interface McpStreamableHttpEntry {
   readonly type: 'http'
   readonly url: string
@@ -65,8 +64,7 @@ function toEntry(server: McpServerConfig): McpServerEntry {
 }
 
 // Replace `${VAR}` references in header and env values with the parent env var.
-// Throw when a referenced var is missing,
-// so the user gets a clear error at config-write time,
+// Throw when a referenced var is missing, so the user gets a clear error at config-write time,
 // not a confusing 401 from the MCP server or a misconfigured subprocess.
 function resolveEnv(values: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {}

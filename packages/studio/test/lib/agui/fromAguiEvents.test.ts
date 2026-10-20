@@ -69,7 +69,7 @@ describe('AguiEventReader on a text message', () => {
     expect(readAll([{ type: EventType.TEXT_MESSAGE_END, messageId: 'never-opened' }])).toEqual([])
   })
 
-  // Roles do not leak between messages: the set is cleared as each closes.
+  // Roles do not leak between messages, since the set is cleared as each closes.
   it('does not carry a user role into the next message on the same id', () => {
     const events = readAll([
       { type: EventType.TEXT_MESSAGE_START, messageId: 'm1', role: 'user' },

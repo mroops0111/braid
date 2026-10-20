@@ -6,14 +6,12 @@ export interface SkillRunOptions {
   /**
    * Continue a conversation the agent itself is holding.
    * The id comes from a prior `session-started` SkillEvent.
-   * A binding may use it to skip replaying `messages`,
-   * and one that cannot still runs correctly,
+   * A binding may use it to skip replaying `messages`, and one that cannot still runs correctly,
    * so a caller never has to know which kind it has.
    */
   readonly resumeSessionId?: string
   /**
-   * The exchange this turn continues, oldest first,
-   * supplied by a caller that holds it rather than reconstructed here.
+   * The exchange this turn continues, oldest first, supplied by a caller that holds it rather than reconstructed here.
    * Omitted, the run is a single turn whose only message is `args`.
    */
   readonly messages?: readonly AgentMessage[]
@@ -26,8 +24,7 @@ export interface SkillRunOptions {
   /**
    * Bearer token the spawned subprocess uses to call back into Braid,
    * through the `braid-core` MCP gateway on the REST API.
-   * Route handlers forward the caller's session token here,
-   * so the agent inherits the user's permissions.
+   * Route handlers forward the caller's session token here, so the agent inherits the user's permissions.
    * Absent in `BRAID_LOCAL_TRUST=true` mode, where anonymous traffic is allowed.
    */
   readonly callerToken?: string
@@ -42,8 +39,7 @@ export interface SkillRunOptions {
   /**
    * What this run is working on, when that is not what it is being told.
    *
-   * `args` is the prompt, and for a fresh run it is also the scope,
-   * since a per-unit run is started by naming its unit.
+   * `args` is the prompt, and for a fresh run it is also the scope, since a per-unit run is started by naming its unit.
    * A run that continues another is told to carry on instead,
    * and recording that sentence as its scope would lose the document.
    * Carrying the original scope forward keeps it attributed to the same work.
@@ -51,8 +47,7 @@ export interface SkillRunOptions {
   readonly scope?: string
   /**
    * The run this one takes up, recorded so the chain stays walkable.
-   * Set wherever a run is started to carry another on,
-   * which is a settled question releasing it,
+   * Set wherever a run is started to carry another on, which is a settled question releasing it,
    * or a corrective turn on its own output.
    */
   readonly continues?: SkillRunId
@@ -76,10 +71,8 @@ export interface SkillRunOptions {
    */
   readonly outputForm?: OutputForm
   /**
-   * Corrective turns still available,
-   * when this run's output misses its skill's declared contract.
-   * Absent means the manifest decides,
-   * which is what a caller starting a fresh run wants.
+   * Corrective turns still available, when this run's output misses its skill's declared contract.
+   * Absent means the manifest decides, which is what a caller starting a fresh run wants.
    */
   readonly retriesLeft?: number
 }
@@ -89,8 +82,7 @@ export type SkillEventListener = (event: SkillEvent) => void
 export interface SkillRunSubscription {
   unsubscribe: () => void
   /**
-   * Number of events already emitted and persisted for this run,
-   * at the moment the subscription was attached.
+   * Number of events already emitted and persisted for this run, at the moment the subscription was attached.
    * Callers read the first N events from `RunRepository.readEvents`,
    * then continue with events delivered to the listener, guaranteeing no gaps.
    */
@@ -98,8 +90,9 @@ export interface SkillRunSubscription {
 }
 
 /**
- * Drives a skill run. Implementations spawn the agent subprocess,
- * persist every emitted event via `RunRepository`, and broadcast to subscribers.
+ * Drives a skill run.
+ * Implementations spawn the agent subprocess, persist every emitted event via `RunRepository`,
+ * and broadcast to subscribers.
  * An HTTP endpoint can then replay history and tail live events,
  * without coupling the run lifecycle to a single client connection.
  */
@@ -118,8 +111,7 @@ export interface SkillRunner {
 
   /**
    * Register a listener for live events on `runId`.
-   * Returns immediately with the current emit position,
-   * so the caller can read JSONL up to that position,
+   * Returns immediately with the current emit position, so the caller can read JSONL up to that position,
    * then continue with the listener with no duplicates.
    * Safe to call on a finished run, the listener simply receives nothing.
    */
@@ -139,10 +131,8 @@ export interface SkillRunner {
   /**
    * Whether this workspace already has a run in flight.
    *
-   * `category` narrows it to runs of that kind,
-   * which is what a caller asking about graph-mutating work wants.
-   * An answer being written reads the graph and must not hold up a build,
-   * and a build must not start beside another.
+   * `category` narrows it to runs of that kind, which is what a caller asking about graph-mutating work wants.
+   * An answer being written reads the graph and must not hold up a build, and a build must not start beside another.
    */
   hasActiveRun: (workspaceId: WorkspaceId, category?: SkillCategory) => boolean
 
@@ -156,8 +146,7 @@ export interface SkillRunner {
   /**
    * The claude session a run opened, once it has reported one.
    *
-   * Read rather than observed,
-   * since a subscriber registered after `start` resolves can miss the event.
+   * Read rather than observed, since a subscriber registered after `start` resolves can miss the event.
    * A caller only needs the value once the run has settled.
    */
   sessionIdFor: (workspace: Workspace, runId: SkillRunId) => Promise<string | undefined>

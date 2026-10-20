@@ -55,8 +55,7 @@ const INITIAL_COMMIT: CommitMessage = {
   userId: BOOTSTRAP_USER_ID,
 }
 
-// `core.quotePath=false` keeps non-ASCII paths intact,
-// in log and name-status output.
+// `core.quotePath=false` keeps non-ASCII paths intact, in log and name-status output.
 function openGit(baseDir: string): SimpleGit {
   return simpleGit({
     baseDir,
@@ -78,8 +77,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
       await writeFile(gitignorePath, DEFAULT_GITIGNORE, 'utf-8')
 
     await git.add(['-A'])
-    // Allow empty when the workspace dir has nothing tracked yet,
-    // so HEAD exists for later commits to parent on.
+    // Allow empty when the workspace dir has nothing tracked yet, so HEAD exists for later commits to parent on.
     const allowEmpty = !(await this.hasPendingChanges(git))
     await this.commitWithMeta(git, INITIAL_COMMIT, { allowEmpty })
   }
@@ -87,8 +85,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
   async commit(workspace: Workspace, message: CommitMessage): Promise<CommitSha> {
     const git = openGit(workspace.rootPath)
     await git.add(['-A'])
-    // Redundant commit attempts resolve to a no-op,
-    // for example a reject after the artifact was already persisted.
+    // Redundant commit attempts resolve to a no-op, for example a reject after the artifact was already persisted.
     if (!(await this.hasPendingChanges(git))) {
       const head = await git.revparse(['HEAD'])
       return CommitSha.parse(head.trim())
@@ -194,8 +191,8 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
   ): Promise<TagMeta> {
     const git = openGit(workspace.rootPath)
     if (note) {
-      // Annotated tags need a committer identity. Pin it inline,
-      // so CI runners without global git config don't fail.
+      // Annotated tags need a committer identity.
+      // Pin it inline, so CI runners without global git config don't fail.
       await git.raw([
         '-c',
         `user.name=${BOOTSTRAP_USER_ID}`,
@@ -276,8 +273,7 @@ function parseLogRecord(record: string, workspaceId: string): CommitMeta {
     parents: parents!.trim()
       ? parents!.trim().split(' ').map(s => CommitSha.parse(s.trim()))
       : [],
-    // Stats are derived lazily via `getCommitDiff`,
-    // to avoid N extra diff calls per list page.
+    // Stats are derived lazily via `getCommitDiff`, to avoid N extra diff calls per list page.
     stats: null,
   }
 }

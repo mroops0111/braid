@@ -25,8 +25,8 @@ export interface ReferenceCandidate extends ResolvedReference {
 }
 
 /**
- * One reference kind's lookup. Registering a resolver is the only edit,
- * a new kind needs, every render site stays untouched.
+ * One reference kind's lookup.
+ * Registering a resolver is the only edit, a new kind needs, every render site stays untouched.
  */
 export interface ReferenceResolver {
   readonly kind: ReferenceKind

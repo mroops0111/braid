@@ -27,12 +27,9 @@ export interface DefineStoragePluginInput<TSchema extends z.ZodTypeAny> {
 /**
  * Build a StoragePlugin from a declarative spec.
  *
- * The wrapper parses `descriptor.config` against `configSchema`
- * before each call to `createModelRepository`,
- * so the plugin body always receives a statically-typed config object,
- * without having to validate it itself.
- * Mirrors the other `defineXxx` builders,
- * so plugin authors find a uniform entry point across every axis.
+ * The wrapper parses `descriptor.config` against `configSchema` before each call to `createModelRepository`,
+ * so the plugin body always receives a statically-typed config object, without having to validate it itself.
+ * Mirrors the other `defineXxx` builders, so plugin authors find a uniform entry point across every axis.
  */
 export function defineStoragePlugin<TSchema extends z.ZodTypeAny>(
   input: DefineStoragePluginInput<TSchema>,

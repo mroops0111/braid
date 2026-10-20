@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mutable stand-in for the remotes store, so each case can set the active
-// remote and the registered list without touching real localStorage.
+// Mutable stand-in for the remotes store,
+// so each case can set the active remote and the registered list without touching real localStorage.
 const remotesState = vi.hoisted(() => ({
   activeId: 'local',
   remotes: [] as { id: string, url: string }[],

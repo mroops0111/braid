@@ -275,8 +275,8 @@ describe('HITLService', () => {
     })
 
     it('serialises concurrent applyProposal calls per workspace', async () => {
-      // Without per-workspace locking both calls read the same empty snapshot, both pass validation, both try to write,
-      // and one surfaces a misleading "node already exists" from the store.
+      // Without per-workspace locking both calls read the same empty snapshot,
+      // both pass validation, both try to write, and one surfaces a misleading "node already exists" from the store.
       // With the lock the second caller sees the proposal already applied, and gets a clean ConflictError.
       const fixture = await setupFixture()
       const proposal = makeProposal(fixture.workspaceId)
@@ -368,8 +368,8 @@ describe('HITLService', () => {
     })
 
     it('records the chosen candidate as answered without mutating the graph', async () => {
-      // The user's answer is just a selection signal, graph writes go through the ddd:clarify skill's Proposal path,
-      // not here.
+      // The user's answer is just a selection signal,
+      // graph writes go through the ddd:clarify skill's Proposal path, not here.
       const fixture = await setupFixture()
       const nodeId = mintTestId('n') as NodeId
       await fixture.modelRepository.applyOperations(fixture.workspaceId, [

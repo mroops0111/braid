@@ -5,8 +5,8 @@ function globalBuffer(): typeof Buffer {
 }
 
 /**
- * Tiny Google Drive v3 client wrapper. We only use a few endpoints and
- * don't need the full `googleapis` package (which ships > 1 MB of types).
+ * Tiny Google Drive v3 client wrapper.
+ * We only use a few endpoints and don't need the full `googleapis` package (which ships > 1 MB of types).
  *
  * Inject `fetchFn` for tests. Real callers use globalThis.fetch.
  */
@@ -58,7 +58,7 @@ export class DriveClient {
     return globalBuffer().from(await response.arrayBuffer())
   }
 
-  /** Download a binary file (image, PDF, and so on) as-is. */
+  /** Download a binary file, such as an image or a PDF, as-is. */
   async downloadFile(fileId: string): Promise<Buffer> {
     const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
     const response = await this.fetchFn(url, { headers: this.authHeader() })

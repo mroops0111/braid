@@ -6,15 +6,14 @@ import { resolveViewer } from './resolveViewer'
 
 export interface ViewerPolicy {
   /**
-   * The role used by `can()` checks. Admins always land as `'owner'`,
-   * regardless of whether they hold an explicit member row.
+   * The role used by `can()` checks.
+   * Admins always land as `'owner'`, regardless of whether they hold an explicit member row.
    * Null when the viewer is not a member and not a server admin.
    */
   readonly effectiveRole: WorkspaceRole | null
   /**
    * The viewer's stored member row, if any.
-   * Useful for rendering, such as showing the stored role as a chip,
-   * but it does not determine effectiveRole.
+   * Useful for rendering, such as showing the stored role as a chip, but it does not determine effectiveRole.
    * Admins have effectiveRole=owner even when member.role is something else.
    */
   readonly actualMember: WorkspaceMember | undefined
@@ -45,8 +44,7 @@ export function useWorkspacePolicy(workspaceId: string | null): ViewerPolicy {
       }
     }
     // No workspace context here.
-    // We still expose the server-admin flag for server-scope surfaces,
-    // such as Settings and Users.
+    // We still expose the server-admin flag for server-scope surfaces, such as Settings and Users.
     // But workspace-scoped capability checks have nothing to evaluate against.
     if (!workspaceId) {
       return {

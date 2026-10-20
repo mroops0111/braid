@@ -61,10 +61,10 @@ function makeGitSource(branch?: string) {
 }
 
 // Stand-in loader plugins for the receiver's plugin-registry lookup.
-// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin
-// object literal so the test stays loader-agnostic: it only exercises
-// the receiver's contract (delegate to `plugin.webhook.{upstream,
-// shouldDispatch}`) and does NOT reproduce production loader semantics.
+// We deliberately bypass `defineSourceLoaderPlugin` and construct the plugin object literal,
+// so the test stays loader-agnostic.
+// It only exercises the receiver's contract, which delegates to `plugin.webhook.{upstream, shouldDispatch}`.
+// It does NOT reproduce production loader semantics.
 // Each real loader has its own webhook unit test in its own package.
 const FAKE_FETCHED_AT = '2026-01-01T00:00:00.000Z' as Timestamp
 
@@ -138,8 +138,7 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   await deps.workspaceRepository.save(workspace)
 
   // Replace the sync service with a spy.
-  // The real one would invoke the github plugin for real,
-  // and these tests only assert that the receiver dispatched.
+  // The real one would invoke the github plugin for real, and these tests only assert that the receiver dispatched.
   const syncOne = vi.fn().mockResolvedValue({
     sourceId: SOURCE_ID,
     new: [],
@@ -160,8 +159,7 @@ async function buildApp(opts: { withSecret?: string, source?: ReturnType<typeof 
   return { app, workspace, secretStore, syncOne }
 }
 
-// Mirror the receiver's composite key so secrets the test pre-writes
-// land in the same slot the receiver will read.
+// Mirror the receiver's composite key so secrets the test pre-writes land in the same slot the receiver will read.
 function composeSecretKey(workspaceId: string, sourceId: string): string {
   return `${workspaceId}--${sourceId}`
 }
@@ -186,7 +184,7 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
     })
 
     expect(response.status).toBe(202)
-    // syncOne runs in the background; give the microtask queue a tick.
+    // syncOne runs in the background, so give the microtask queue a tick.
     await new Promise(resolve => setTimeout(resolve, 10))
     expect(syncOne).toHaveBeenCalledTimes(1)
     expect(syncOne.mock.calls[0]?.[1]).toBe(SOURCE_ID)
@@ -400,8 +398,7 @@ describe('POST /webhooks/github/:workspaceId/:sourceId (issue #30)', () => {
 
     expect(response.status).toBe(401)
     const json = await response.json() as { detail?: string }
-    // Anonymous callers learn nothing about which (ws, source) pairs
-    // exist or are webhook-armed.
+    // Anonymous callers learn nothing about which (ws, source) pairs exist or are webhook-armed.
     expect(json.detail).toBe('Invalid webhook signature.')
   })
 

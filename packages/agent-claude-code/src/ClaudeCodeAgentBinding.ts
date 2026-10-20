@@ -13,8 +13,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
   }
 
   async resolveSpawn(input: AgentSpawnInput): Promise<SpawnInvocation> {
-    // Claude keeps the conversation itself,
-    // so a continued run sends only the new turn,
+    // Claude keeps the conversation itself, so a continued run sends only the new turn,
     // and the earlier exchange stays where it already is.
     // Without that handle the exchange travels in the prompt,
     // which a binding for an agent holding no conversation state always does.
@@ -42,8 +41,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     }
     if (input.mcpServers.length > 0) {
       const mcpConfigFile = await writeClaudeMcpConfig(input.sessionDir, input.workspace.id, input.mcpServers)
-      // Strict, so the run sees only braid's servers,
-      // not the operator's global ~/.claude.json MCP servers merged in.
+      // Strict, so the run sees only braid's servers, not the operator's global ~/.claude.json MCP servers merged in.
       baseArgs.push('--mcp-config', mcpConfigFile, '--strict-mcp-config')
     }
     // Load each namespace's skill bundle, so `/namespace:verb` resolves.
@@ -59,8 +57,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
 
     const env: Record<string, string> = {
       ...inheritableSpawnEnvironment(process.env),
-      // The credential arrives here rather than being inherited,
-      // so one place decides which account a run spends,
+      // The credential arrives here rather than being inherited, so one place decides which account a run spends,
       // and a run without one fails saying so.
       ...this.descriptor.env,
       BRAID_WORKSPACE: input.workspace.rootPath,
@@ -71,7 +68,7 @@ export class ClaudeCodeAgentBinding implements AgentBinding {
     return { bin: 'claude', args: baseArgs, env }
   }
 
-  // Claude streams newline-delimited JSON, so the runner hands each line here.
+  /** Claude streams newline-delimited JSON, so the runner hands each line here. */
   parseLine = (line: string, now: string): SkillEvent[] => parseClaudeLine(line, now)
 }
 
@@ -82,14 +79,12 @@ function latestTurn(messages: readonly AgentMessage[]): string {
 /**
  * The prompt that opens a claude conversation.
  *
- * A skill is invoked as a slash command,
- * so the first user message becomes its argument.
+ * A skill is invoked as a slash command, so the first user message becomes its argument.
  * A skill with an EXTEND.md is pointed at the file rather than inlining it,
  * so the `*.md` links inside it still resolve.
  *
  * Anything after that first message is an exchange claude has not seen,
- * which only happens when the caller holds the conversation,
- * and we have no handle for it.
+ * which only happens when the caller holds the conversation, and we have no handle for it.
  * Replaying it in the prompt is why the port carries messages at all.
  */
 function openingPrompt(input: AgentSpawnInput): string {

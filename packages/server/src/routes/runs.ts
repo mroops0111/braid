@@ -33,8 +33,7 @@ export interface RunsRouterDeps {
   readonly workspaceRepository: WorkspaceRepository
   /**
    * Asked whether the person a grant names is really a member here.
-   * Absent in in-memory compositions, which hold no member rows,
-   * and those skip every other gate on this router too.
+   * Absent in in-memory compositions, which hold no member rows, and those skip every other gate on this router too.
    */
   readonly workspaceRegistry?: WorkspaceRegistryFile
 }
@@ -58,8 +57,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   // The whole persisted log in one response.
   //
   // Replaying history over SSE pins a connection for what is not a stream,
-  // and a browser allows only a handful per host,
-  // so a few finished runs are enough to stall every request after them.
+  // and a browser allows only a handful per host, so a few finished runs are enough to stall every request after them.
   // A finished run has nothing left to tail, so it is a plain fetch.
   router.get('/:runId/events.json', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
@@ -71,10 +69,8 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     return context.json({ items, active: deps.skillRunner.isActive(runId) })
   })
 
-  // Replay the persisted JSONL log,
-  // and if the run is still active, tail new events as they arrive.
-  // Clients can open, close, and reopen this stream freely,
-  // the underlying subprocess and event log are untouched.
+  // Replay the persisted JSONL log, and if the run is still active, tail new events as they arrive.
+  // Clients can open, close, and reopen this stream freely, the underlying subprocess and event log are untouched.
   router.get('/:runId/events', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
@@ -89,8 +85,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
       }
 
       // Subscribe BEFORE reading JSONL.
-      // The positionAtSubscribe count snapshots how many events were persisted,
-      // so we read exactly that many from disk,
+      // The positionAtSubscribe count snapshots how many events were persisted, so we read exactly that many from disk,
       // and rely on the live listener for everything after.
       const queue = createAsyncQueue<SkillEvent>()
       const { unsubscribe, positionAtSubscribe } = deps.skillRunner.subscribe(runId, (event) => {
@@ -121,8 +116,8 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   })
 
   // SIGTERM the underlying claude subprocess.
-  // The drain loop emits a `completed` event with the real exit code,
-  // which the SSE tailers receive normally. 404 if the run already finished.
+  // The drain loop emits a `completed` event with the real exit code, which the SSE tailers receive normally.
+  // 404 if the run already finished.
   router.post('/:runId/cancel', async (context) => {
     const runId = SkillRunId.parse(context.req.param('runId'))
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
@@ -143,19 +138,16 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     if (activeRunId)
       throw new ConflictError(`Cannot delete session "${sessionId}": run "${activeRunId}" is still active`)
     // The agent's working directory, then everything written about the run.
-    // Deleting is one act with one name,
-    // so nothing here is conditional on a flag the caller may forget to send.
+    // Deleting is one act with one name, so nothing here is conditional on a flag the caller may forget to send.
     await deps.skillRunner.forgetSession(sessionId)
     await deps.runRepository.deleteRecords(workspace, targets)
     // Grants go with the bytes they pointed at.
-    // A withdrawn copy would leave the ledger naming a conversation,
-    // that no longer has a single run left to read.
+    // A withdrawn copy would leave the ledger naming a conversation, that no longer has a single run left to read.
     await deps.sessionShareRepository.deleteSessionShares(workspace, sessionId)
     return context.body(null, 204)
   })
 
-  // Single-run delete, used by orphan Conversations rows,
-  // that have no sessionId to anchor against.
+  // Single-run delete, used by orphan Conversations rows, that have no sessionId to anchor against.
   // Refuses to touch an in-flight run.
   router.delete('/:runId', async (context) => {
     const runId = SkillRunId.parse(context.req.param('runId'))
@@ -217,8 +209,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
   /**
    * Every live grant this caller is part of, given or received.
    *
-   * Studio reads it twice over,
-   * to fill the share dialog with who already holds a conversation,
+   * Studio reads it twice over, to fill the share dialog with who already holds a conversation,
    * and to mark a row that arrived from somebody else.
    * Grants between two other people are nobody's business here.
    */
@@ -251,8 +242,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
     const grantedBy = getUserId(context)
     if (grantee === grantedBy)
       throw new ValidationError('A conversation cannot be shared with the person who started it')
-    // A grant is only reachable through a member row,
-    // since workspace access is refused before any run route runs,
+    // A grant is only reachable through a member row, since workspace access is refused before any run route runs,
     // so naming an outsider would record one nobody could ever use.
     if (deps.workspaceRegistry) {
       const member = await deps.workspaceRegistry.getMember(workspace.rootPath, grantee)
@@ -271,8 +261,7 @@ export function createRunsRouter(deps: RunsRouterDeps): Hono {
 
   // Withdraw one grant.
   //
-  // Appended as a revoked copy rather than erased,
-  // because the file is read in order and last-wins.
+  // Appended as a revoked copy rather than erased, because the file is read in order and last-wins.
   // A stream the recipient already holds open plays out its own run,
   // and every request after this answers as it did before the grant.
   router.delete('/sessions/:sessionId/shares/:granteeUserId', authorOnly, async (context) => {

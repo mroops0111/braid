@@ -17,8 +17,7 @@ interface Offered {
 
 /**
  * The form comes first because its kind decides what may be written about.
- * Asking for a subject first would offer nodes the chosen form refuses,
- * which is a list that lies.
+ * Asking for a subject first would offer nodes the chosen form refuses, which is a list that lies.
  */
 export function WriteDocumentDialog({ kinds, nodes, nodeTypes, onClose, onWrite }: {
   kinds: readonly ViewKindDescriptor[]
@@ -89,9 +88,8 @@ export function WriteDocumentDialog({ kinds, nodes, nodeTypes, onClose, onWrite 
                   onClick={() => {
                     setPicked(one)
                     setAsked({})
-                    // A subject the previous form took,
-                    // may be one this one will not, so the pick starts again,
-                    // rather than looking settled and being refused later.
+                    // A subject the previous form took, may be one this one will not,
+                    // so the pick starts again, rather than looking settled and being refused later.
                     setSubject(null)
                   }}
                 >

@@ -22,8 +22,7 @@ const started: SkillEvent = {
 
 describe('aguiTranslator', () => {
   // The protocol's start event carries ids and nothing else,
-  // so what the run was told travels as what it is,
-  // the user message that starts the turn.
+  // so what the run was told travels as what it is, the user message that starts the turn.
   // Without it a reader is handed work with no sight of the instruction.
   it('opens the stream with a run started carrying both ids, then what was asked for', () => {
     const events = translator().translate(started)
@@ -121,10 +120,8 @@ describe('aguiTranslator', () => {
     ])
   })
 
-  // A Braid run reports an error and keeps going,
-  // while RUN_ERROR ends the stream for a conformant client.
-  // Asserting the whole list is what makes the name of this test a claim,
-  // since nothing terminal may follow either.
+  // A Braid run reports an error and keeps going, while RUN_ERROR ends the stream for a conformant client.
+  // Asserting the whole list is what makes the name of this test a claim, since nothing terminal may follow either.
   it('reports a mid-run error without ending the stream', () => {
     const events = translator().translate({ type: 'error', message: 'boom', at: AT })
     expect(events).toEqual([

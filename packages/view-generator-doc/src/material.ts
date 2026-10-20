@@ -6,8 +6,7 @@ import { documentTreeOf, renderTaxonomyOf } from '@braidhq/core'
  * A type's name as the ontology gave it, translations and all.
  *
  * Carried rather than flattened to one locale,
- * so a document written out of a graph kept in one language,
- * is not carrying a single word on the page in another.
+ * so a document written out of a graph kept in one language, is not carrying a single word on the page in another.
  */
 export type TypeLabel = LocalizedText
 
@@ -36,10 +35,8 @@ export interface MaterialConcern {
 /**
  * Everything a form is handed, and nothing about how to write it.
  *
- * A projection of the graph,
- * so the same graph and subject produce the same bytes.
- * That is what lets a written document be told it has gone stale,
- * by comparing this against what it was written from.
+ * A projection of the graph, so the same graph and subject produce the same bytes.
+ * That is what lets a written document be told it has gone stale, by comparing this against what it was written from.
  */
 export interface DocumentMaterial {
   readonly subject: NodeId
@@ -120,8 +117,7 @@ function leafOf(node: GraphNode, labels: ReadonlyMap<NodeTypeId, TypeLabel>): Ma
 /**
  * One order, so the same graph writes the same document.
  *
- * By name, since that is the order a reader would scan,
- * and by id where two carry one name,
+ * By name, since that is the order a reader would scan, and by id where two carry one name,
  * since a tie broken arbitrarily is a tie broken differently next run.
  */
 function ordered(nodes: readonly MaterialNode[]): readonly MaterialNode[] {

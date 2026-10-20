@@ -3,8 +3,7 @@ import type { GraphEdge, GraphEdgeFilter, GraphNode, GraphNodeFilter } from '@br
 /**
  * Narrow a node list to a filter.
  *
- * Shared by every ModelRepository,
- * since each one holds the whole snapshot in memory before answering.
+ * Shared by every ModelRepository, since each one holds the whole snapshot in memory before answering.
  * Two copies would let one backend drift into a different search.
  */
 export function applyNodeFilter(nodes: readonly GraphNode[], filter?: GraphNodeFilter): GraphNode[] {

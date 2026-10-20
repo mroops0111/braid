@@ -12,10 +12,8 @@ interface ArmedConfirmBarProps {
 }
 
 /**
- * Two-step destructive confirm pattern used across Settings,
- * and Workspace Details.
- * The first click arms the action elsewhere,
- * and this bar renders the message and the [Cancel] plus confirm pair.
+ * Two-step destructive confirm pattern used across Settings, and Workspace Details.
+ * The first click arms the action elsewhere, and this bar renders the message and the [Cancel] plus confirm pair.
  */
 export function ArmedConfirmBar({
   message,

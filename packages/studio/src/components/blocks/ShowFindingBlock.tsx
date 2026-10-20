@@ -14,8 +14,7 @@ const VERDICT_RULE: Record<ShowFinding['verdict'], string> = {
   unverifiable: 'border-l-zinc-500/60 bg-zinc-500/[0.04]',
 }
 
-// A second axis from the verdict,
-// so it is stated in the footer rather than on the rule,
+// A second axis from the verdict, so it is stated in the footer rather than on the rule,
 // where it would read as a stronger or weaker version of the verdict.
 const SUPPORT_TONE: Record<EvidenceSupport, string> = {
   corroborated: 'text-emerald-600 dark:text-emerald-400',
@@ -25,8 +24,7 @@ const SUPPORT_TONE: Record<EvidenceSupport, string> = {
 
 /**
  * An annotation on the answer, not a peer of it.
- * Reads as a callout inserted into the reading column,
- * which is what a disagreement between two sources actually is.
+ * Reads as a callout inserted into the reading column, which is what a disagreement between two sources actually is.
  */
 export function ShowFindingBlock({ block }: { block: ShowFinding }) {
   const { t } = useTranslation()

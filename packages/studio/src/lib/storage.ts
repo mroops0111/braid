@@ -4,8 +4,7 @@
  * Three conventions had grown up side by side (`braid-`, `braid.`, `braid:`),
  * each spelled inline at the one place that read it,
  * so nothing said what the set was and a new preference picked a fourth.
- * Naming them here makes the set readable,
- * and `braid:` wins because the keys that cannot be renamed already use it.
+ * Naming them here makes the set readable, and `braid:` wins because the keys that cannot be renamed already use it.
  */
 export const STORAGE_KEYS = {
   theme: 'braid:theme',
@@ -24,8 +23,7 @@ export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS]
  * Preference keys that were renamed, old name to new.
  *
  * Tokens and remotes are absent on purpose.
- * Renaming those would sign the reader out,
- * and they already carry the convention the rest are moving to.
+ * Renaming those would sign the reader out, and they already carry the convention the rest are moving to.
  */
 const RENAMED: ReadonlyArray<readonly [string, StorageKey]> = [
   ['braid-theme', STORAGE_KEYS.theme],
@@ -39,13 +37,10 @@ let migrated = false
 /**
  * Move any preference still under its old key, then drop the old key.
  *
- * Called before every read rather than once at startup,
- * because theme and locale are read during first paint,
- * and an import order that put a read before a startup hook
- * would silently reset them.
+ * Called before every read rather than once at startup, because theme and locale are read during first paint,
+ * and an import order that put a read before a startup hook would silently reset them.
  *
- * A value already under the new key wins,
- * so a second run of this is a no-op rather than a revert.
+ * A value already under the new key wins, so a second run of this is a no-op rather than a revert.
  */
 function ensureMigrated(): void {
   if (migrated || typeof localStorage === 'undefined')

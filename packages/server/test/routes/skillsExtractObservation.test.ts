@@ -70,8 +70,9 @@ async function buildAppForExtract(opts: { exitCode: number, perUnitSkillId?: str
     spawn,
   })
   // Register an ontology whose batch.perUnit.skillId matches the ontologyId,
-  // so the route knows which skill may carry sourceUnit. Default keeps the production wiring,
-  // extract is the per-unit skill. A test wanting the active ontology to disagree can override.
+  // so the route knows which skill may carry sourceUnit.
+  // Default keeps the production wiring, extract is the per-unit skill.
+  // A test wanting the active ontology to disagree can override.
   const pluginRegistry = new PluginRegistry()
   pluginRegistry.register(ontologyWithPerUnit(opts.perUnitSkillId ?? 'ddd:extract'))
   const deps = composeApp({
@@ -110,8 +111,9 @@ async function waitForRunSettled(deps: Awaited<ReturnType<typeof buildAppForExtr
 }
 
 /**
- * Fake child process that does nothing until killed. On `kill(signal)` it emits the `close` event with `(code=null,
- * signal)` so the runner's exitCode mapping (line 256-264 of SubprocessSkillRunner) sees a signal-terminated exit.
+ * Fake child process that does nothing until killed.
+ * On `kill(signal)` it emits the `close` event with `(code=null, signal)`,
+ * so the runner's exitCode mapping (line 256-264 of SubprocessSkillRunner) sees a signal-terminated exit.
  */
 function createCancellableChild(): ChildProcess {
   const stdout = new Readable({ read() {} })

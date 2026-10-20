@@ -22,10 +22,8 @@ export interface MakeProposalOptions {
 /**
  * Construct a pending Proposal for tests.
  * Defaults to a single sourceless addNode with a neutral missing role,
- * a shape that satisfies the EvidenceValidator invariant,
- * without naming an ontology's roles.
- * Override id when a test asserts on it,
- * otherwise a fresh minted id keeps calls collision-free.
+ * a shape that satisfies the EvidenceValidator invariant, without naming an ontology's roles.
+ * Override id when a test asserts on it, otherwise a fresh minted id keeps calls collision-free.
  */
 export function makeProposal(workspaceId: WorkspaceId, opts: MakeProposalOptions = {}): Proposal {
   const name = opts.name ?? 'voidTask'

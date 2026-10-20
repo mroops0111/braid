@@ -9,10 +9,8 @@ function isTheme(value: unknown): value is Theme {
 
 /**
  * Theme to apply on first paint.
- * Returns the user's stored pick if they have ever clicked the toggle,
- * otherwise the OS preference.
- * Once the user picks a theme it sticks,
- * and no longer follows OS day-night changes.
+ * Returns the user's stored pick if they have ever clicked the toggle, otherwise the OS preference.
+ * Once the user picks a theme it sticks, and no longer follows OS day-night changes.
  * That is the trade for a simple two-state toggle without a `system` mode.
  */
 function initialTheme(): Theme {

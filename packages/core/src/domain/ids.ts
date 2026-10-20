@@ -13,12 +13,9 @@ import type {
   UserId,
 } from '@braidhq/schema'
 
-// Every id is the type name in kebab-case then a 12 hex random suffix,
-// for example `clarification-3f9a2b7c1d4e`.
-// The name keeps logs and urls readable,
-// the random is 48 bit, collision-safe far past this project's volume.
-// No time in the id, entities carry their own timestamp,
-// every listing sorts on that field, never on the id string.
+// Every id is the type name in kebab-case then a 12 hex random suffix, for example `clarification-3f9a2b7c1d4e`.
+// The name keeps logs and urls readable, the random is 48 bit, collision-safe far past this project's volume.
+// No time in the id, entities carry their own timestamp, every listing sorts on that field, never on the id string.
 function mint<T extends string>(name: string): T {
   return `${name}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}` as T
 }

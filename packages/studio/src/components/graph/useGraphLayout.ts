@@ -5,10 +5,8 @@ import { useMemo } from 'react'
 
 const NODE_WIDTH = 200
 // Card height varies with the description subtitle.
-// Reserve enough vertical space for the longer case,
-// so edges going around cards have room.
-// Real cards may render shorter, which just makes the gap larger,
-// and that is fine for readability.
+// Reserve enough vertical space for the longer case, so edges going around cards have room.
+// Real cards may render shorter, which just makes the gap larger, and that is fine for readability.
 const NODE_HEIGHT = 92
 
 export interface NodeCardData extends Record<string, unknown> {
@@ -20,10 +18,8 @@ export interface NodeCardData extends Record<string, unknown> {
   change?: ChangeKind
   /**
    * Set by `GraphCanvas` when the parent passes `emphasizeAdded`.
-   * When paired with `change === 'added'`,
-   * the card adds a green ring and shadow,
-   * so incremental proposals do not bury the diff in unmarked context,
-   * when only a small fraction of the graph changes.
+   * When paired with `change === 'added'`, the card adds a green ring and shadow,
+   * so incremental proposals do not bury the diff in unmarked context, when only a small fraction of the graph changes.
    */
   emphasizeAdded?: boolean
   /**
@@ -48,8 +44,7 @@ export interface LaidOutGraph {
 /**
  * Memoised dagre layout.
  * Recomputes when the node or edge ids change,
- * so an in-place metadata edit, such as description or status,
- * does not trigger a re-layout and re-pan.
+ * so an in-place metadata edit, such as description or status, does not trigger a re-layout and re-pan.
  * Adding or removing a node does.
  */
 export function useGraphLayout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidOutGraph {
@@ -62,10 +57,8 @@ export function useGraphLayout(nodes: readonly GraphNode[], edges: readonly Grap
 function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidOutGraph {
   const graph = new dagre.graphlib.Graph()
   graph.setDefaultEdgeLabel(() => ({}))
-  // Top-down for DDD, boundedContext sits at the top,
-  // and aggregates, commands, events, and rules descend from it.
-  // Spacing is tuned so edge labels land in the gap between rows,
-  // rather than overlapping the cards on either side.
+  // Top-down for DDD, boundedContext sits at the top, and aggregates, commands, events, and rules descend from it.
+  // Spacing is tuned so edge labels land in the gap between rows, rather than overlapping the cards on either side.
   // Labels are placed at the segment midpoint by react-flow.
   //   ranksep: vertical gap between ranks, wide enough for two,
   //            stacked edge labels with their background pills.
@@ -94,8 +87,7 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
         x: positioned.x - NODE_WIDTH / 2,
         y: positioned.y - NODE_HEIGHT / 2,
       },
-      // Explicit width and height let ReactFlow's MiniMap draw a rectangle,
-      // for each node.
+      // Explicit width and height let ReactFlow's MiniMap draw a rectangle, for each node.
       // Without them it falls back to measuring the rendered DOM,
       // which only happens for nodes currently inside the viewport,
       // and the minimap ends up empty for off-screen or fresh nodes.
@@ -106,8 +98,7 @@ function layout(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): LaidO
   })
 
   // Default edge type is bezier.
-  // The curve handles densely-fanned edges out of a single source,
-  // much better than smoothstep's right-angle routing,
+  // The curve handles densely-fanned edges out of a single source, much better than smoothstep's right-angle routing,
   // which shared vertical segments and made the canvas read as pipes.
   const flowEdges: Edge<EdgeCardData>[] = edges.map(edge => ({
     id: edge.id,

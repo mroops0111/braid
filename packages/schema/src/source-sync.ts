@@ -3,9 +3,9 @@ import { SourceId, Timestamp, WorkspaceId } from './common.js'
 
 /**
  * How stale a source may be before something reads it.
- * One knob rather than a separate poll interval,
- * since a cadence that disagrees with the budget either spins,
- * on already-fresh sources, or leaves the budget unenforced between ticks.
+ * It is one knob rather than a separate poll interval.
+ * A cadence that disagrees with the budget would either spin on already-fresh sources,
+ * or leave the budget unenforced between ticks.
  * The poller derives its wake-up from this.
  *
  * Absent on a source means it never refreshes on its own,
@@ -18,10 +18,8 @@ export type SourceSyncPolicy = z.infer<typeof SourceSyncPolicy>
 
 /**
  * Whether the workspace runs background refreshes at all.
- * A kill switch for the timer, not a second opt-in gate,
- * since the per-source policy already decides who participates.
- * Reaching for it stops outbound load on a struggling remote,
- * without editing every source and losing their budgets.
+ * A kill switch for the timer, not a second opt-in gate, since the per-source policy already decides who participates.
+ * Reaching for it stops outbound load on a struggling remote, without editing every source and losing their budgets.
  */
 export const WorkspacePollingConfig = z.object({
   enabled: z.boolean().default(true),

@@ -70,8 +70,9 @@ storage:
   })
 
   it('DELETE ?purge=true removes the workspace folder so auto-discover does not bring it back', async () => {
-    // Auto-discover-on-boot is why plain unregister isn't enough here. The folder sits there with a PRODUCT.md,
-    // so the next boot re-registers it. Purge is the only way to fully rebuild from scratch.
+    // Auto-discover-on-boot is why plain unregister isn't enough here.
+    // The folder sits there with a PRODUCT.md, so the next boot re-registers it.
+    // Purge is the only way to fully rebuild from scratch.
     const braidHome = await makeBraidHome()
     const wsDir = join(braidHome, 'workspaces', 'purge-me')
     await mkdir(wsDir, { recursive: true })
@@ -129,8 +130,9 @@ storage:
   })
 
   it('POST /workspaces/scaffold rolls back PRODUCT.md and registry on provision failure', async () => {
-    // A source with an unregistered loader.kind makes provisionAll throw. Verify the route catches it,
-    // removes the just-written PRODUCT.md, and leaves the registry empty so a retry doesn't hit "already exists".
+    // A source with an unregistered loader.kind makes provisionAll throw.
+    // Verify the route catches it, removes the just-written PRODUCT.md,
+    // and leaves the registry empty so a retry doesn't hit "already exists".
     const braidHome = await makeBraidHome()
     const app = createApp(await composeFsApp({ braidHome }))
 

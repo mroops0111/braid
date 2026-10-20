@@ -6,9 +6,9 @@ import { readMcpEndpointStatus } from '../infrastructure/mcp/mcpEndpointStatus.j
 /**
  * Reports whether this deployment serves an MCP endpoint, and where.
  *
- * Read-only on purpose. Whether there is an endpoint follows from the
- * authorization server, which is a deployment decision, so Studio explains
- * the state rather than offering a switch that would disagree with boot.
+ * Read-only on purpose.
+ * Whether there is an endpoint follows from the authorization server, which is a deployment decision,
+ * so Studio explains the state rather than offering a switch that would disagree with boot.
  */
 export interface McpStatusRouterDeps {
   readonly resolution: McpGatewayResolution
@@ -30,8 +30,8 @@ export function createMcpStatusRouter(deps: McpStatusRouterDeps): Hono {
       reachable: async () => {
         if (!deps.gatewayUrl)
           return false
-        // Any answer proves it is listening. An unauthenticated probe draws
-        // a challenge, which is a reply and so counts as reachable.
+        // Any answer proves it is listening.
+        // An unauthenticated probe draws a challenge, which is a reply and so counts as reachable.
         try {
           await send(deps.gatewayUrl, { method: 'GET' })
           return true

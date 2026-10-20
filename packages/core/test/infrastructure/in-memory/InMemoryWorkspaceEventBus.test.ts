@@ -69,9 +69,8 @@ describe('InMemoryWorkspaceEventBus', () => {
   })
 
   it('tolerates a listener that unsubscribes itself during dispatch', () => {
-    // Regression test: iterating the listener set directly would throw
-    // if a listener mutates the set during iteration. Implementation
-    // snapshots first.
+    // Iterating the listener set directly would throw if a listener mutates the set during iteration.
+    // The implementation snapshots first, and this regression test holds it to that.
     const bus = new InMemoryWorkspaceEventBus()
     const stays = vi.fn()
     let unsubscribeSelf: (() => void) | null = null
@@ -107,8 +106,7 @@ describe('InMemoryWorkspaceEventBus', () => {
   })
 
   it('supports re-subscribe after fully unsubscribing the workspace', () => {
-    // After every listener unsubscribes, the bus drops the bucket,
-    // a fresh subscribe must still work.
+    // After every listener unsubscribes, the bus drops the bucket, a fresh subscribe must still work.
     const bus = new InMemoryWorkspaceEventBus()
     const first = vi.fn()
     const unsub = bus.subscribe(wsA, first)

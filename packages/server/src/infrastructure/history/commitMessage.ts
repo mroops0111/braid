@@ -8,8 +8,7 @@ import {
   UserId,
 } from '@braidhq/schema'
 
-// Trailer keys recognised by `git interpret-trailers`,
-// so future tooling can lean on the same parser.
+// Trailer keys recognised by `git interpret-trailers`, so future tooling can lean on the same parser.
 const TRAILER_KEY_PATTERN = /^[a-z][a-z-]*$/i
 
 export function serializeCommitMessage(message: CommitMessage): string {
@@ -49,8 +48,7 @@ export function parseCommitMessage(raw: string): CommitMessage {
   const { body, trailers } = splitBodyAndTrailers(lines)
   const subject = body ? `${firstLine}\n${body}` : firstLine
   const kindRaw = trailers.Kind ?? subjectLine.slice(0, colonIdx).trim()
-  // Fall back to `snapshot` on unknown kinds,
-  // so a manual `git commit` from the CLI still renders in the timeline.
+  // Fall back to `snapshot` on unknown kinds, so a manual `git commit` from the CLI still renders in the timeline.
   const kind = CommitKind.safeParse(kindRaw).data ?? 'snapshot'
   const userId = UserId.parse(trailers.Author ?? 'unknown')
 
@@ -72,8 +70,7 @@ export function parseCommitMessage(raw: string): CommitMessage {
   return out
 }
 
-// indexOf-based scan instead of a single regex,
-// to avoid polynomial backtracking against adversarial commit bodies.
+// indexOf-based scan instead of a single regex, to avoid polynomial backtracking against adversarial commit bodies.
 function splitBodyAndTrailers(lines: readonly string[]): { body: string, trailers: Record<string, string> } {
   const trailers: Record<string, string> = {}
   let bodyEnd = 1

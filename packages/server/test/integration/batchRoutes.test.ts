@@ -21,9 +21,9 @@ describe('batch REST routes', () => {
     const response = await app.request('/workspaces/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // DDD ontology requires both intent + code roles. Use minimal
-      // filesystem sources so the scaffold passes its role check; the
-      // batch tests don't exercise loader-driven provision.
+      // The DDD ontology requires both intent and code roles.
+      // Minimal filesystem sources let the scaffold pass its role check.
+      // The batch tests don't exercise loader-driven provision.
       body: JSON.stringify({
         name: 'bt',
         manifest: {
@@ -47,11 +47,10 @@ describe('batch REST routes', () => {
     expect(response.status).toBe(404)
   })
 
-  // NOTE: the previous "POST /batch returns 400 when no sources" case is
-  // now blocked upstream by the scaffold endpoint's `requiredSourceRoles`
-  // check on the DDD ontology (`['intent', 'code']`). A workspace
-  // without both roles cannot be created in the first place. See
-  // packages/server/src/routes/workspaces.ts in the scaffold handler.
+  // NOTE: there is no "POST /batch returns 400 when no sources" case.
+  // The scaffold endpoint's `requiredSourceRoles` check on the DDD ontology (`['intent', 'code']`) blocks it upstream.
+  // A workspace without both roles cannot be created in the first place.
+  // See packages/server/src/routes/workspaces.ts in the scaffold handler.
 
   it('POST /batch/stop is idempotent (204 even when no batch running)', async () => {
     const response = await app.request(`/workspaces/${workspaceId}/batch/stop`, { method: 'POST' })

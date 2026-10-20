@@ -43,8 +43,7 @@ function toRoleDescriptor(role: SourceRoleInput): SourceRoleDescriptor {
  * Construct a bare OntologyPlugin for tests.
  * Defaults to an empty ontology with no nodes, edges, or validators.
  * Pass per-test overrides to exercise a specific path.
- * Use this rather than an inline literal,
- * which fails the excess-property check because register() takes Plugin.
+ * Use this rather than an inline literal, which fails the excess-property check because register() takes Plugin.
  */
 export function makeOntology(opts: MakeOntologyOptions = {}): OntologyPlugin {
   const ontologyId = (opts.ontologyId ?? 'ddd') as OntologyId

@@ -30,8 +30,7 @@ describe('runOutputGate', () => {
     expect(() => gate.assertMayPropose(RUN)).not.toThrow()
   })
 
-  // A restart empties this,
-  // and how many times a run may submit is settled from its records,
+  // A restart empties this, and how many times a run may submit is settled from its records,
   // so failing open here costs nothing and wedges nothing.
   it('asks nothing of a run this process never saw open', () => {
     expect(() => new RunOutputGate().assertMayPropose(RUN)).not.toThrow()

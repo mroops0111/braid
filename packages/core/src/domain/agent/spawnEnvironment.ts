@@ -1,17 +1,13 @@
 /**
  * What a skill subprocess inherits from the server it was spawned by.
  *
- * An agent runs a prompt that lives in the workspace,
- * so whoever can edit a skill decides what it reads.
+ * An agent runs a prompt that lives in the workspace, so whoever can edit a skill decides what it reads.
  * Handing it the server's whole environment hands over every credential,
- * and a run needs only enough to find its interpreter,
- * and to reach the network.
+ * and a run needs only enough to find its interpreter, and to reach the network.
  *
  * An allowlist rather than a denylist.
- * A deployment gains variables over time,
- * and the name nobody thought to exclude is the one that leaks.
- * A credential a run legitimately needs comes from its caller,
- * which is where the decision to grant it can be seen.
+ * A deployment gains variables over time, and the name nobody thought to exclude is the one that leaks.
+ * A credential a run legitimately needs comes from its caller, which is where the decision to grant it can be seen.
  */
 const INHERITED: ReadonlySet<string> = new Set([
   // Finding and running the agent's own binary.

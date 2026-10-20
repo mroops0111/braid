@@ -22,18 +22,17 @@ export interface SourceLoaderRunnerDeps {
 }
 
 /**
- * Runs `SourceLoader.provision` / `.sync`,
- * for a workspace's loader-backed filesystem sources.
+ * Runs `SourceLoader.provision` / `.sync`, for a workspace's loader-backed filesystem sources.
  * Sources without a loader, or that aren't filesystem-kind, are a no-op.
  *
  * Two entry points:
+ *
  *   - `provisionAll` runs at workspace scaffold / source add time.
  *   - `syncOne` runs when the user clicks the source's "Sync" button,
  *     or a scheduler triggers a refresh.
  *
  * Both are pure provisioning.
- * They materialise files under each source's configured `path`,
- * and do not touch the Knowledge Graph.
+ * They materialise files under each source's configured `path`, and do not touch the Knowledge Graph.
  */
 export class SourceLoaderRunner {
   constructor(private readonly deps: SourceLoaderRunnerDeps) {}
@@ -65,10 +64,8 @@ export class SourceLoaderRunner {
     const loader = this.deps.pluginRegistry.requireSourceLoader(source.loader.kind)
     const context = { workspaceId: workspace.id, sourceId: source.id }
     const destination = resolveSourcePath(workspace, source)
-    // If the destination doesn't exist yet, the first run after register,
-    // fall back to provision.
-    // The user's intent for "sync" is "make this source current",
-    // whether that's a fresh clone or a pull is plumbing.
+    // If the destination doesn't exist yet, the first run after register, fall back to provision.
+    // The user's intent for "sync" is "make this source current", whether that's a fresh clone or a pull is plumbing.
     if (!(await pathExists(destination))) {
       const provision = await loader.provision(source.loader.config, destination, context)
       const report: SyncReport = {

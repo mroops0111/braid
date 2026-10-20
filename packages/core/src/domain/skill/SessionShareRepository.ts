@@ -4,8 +4,7 @@ import type { Workspace } from '../workspace/Workspace.js'
 /**
  * Who, besides its author, may read a conversation.
  *
- * Access control rather than run recording,
- * so it sits beside `RunRepository` instead of inside it.
+ * Access control rather than run recording, so it sits beside `RunRepository` instead of inside it.
  * A caller that only reads transcripts never depends on the grant methods,
  * and a caller that only grants never depends on the event stream.
  */

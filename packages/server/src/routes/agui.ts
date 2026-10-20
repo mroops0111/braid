@@ -39,10 +39,8 @@ function toAgentMessages(input: { messages: readonly { role: string, content?: u
 
 /**
  * SSE only, deliberately.
- * The encoder also speaks protobuf,
- * but a binary path with no consumer would ship an untested branch,
- * and a client asking for it is better told plainly,
- * than served a stream it did not request.
+ * The encoder also speaks protobuf, but a binary path with no consumer would ship an untested branch,
+ * and a client asking for it is better told plainly, than served a stream it did not request.
  */
 function sseEncoder(): EventEncoder {
   return new EventEncoder({ accept: 'text/event-stream' })
@@ -52,8 +50,7 @@ function sseEncoder(): EventEncoder {
  * The questions this run left open, spoken as the protocol's own interrupts.
  *
  * A run that could not decide something raised a Clarification and stopped.
- * Ending such a run with a plain `RUN_FINISHED` would say the work is over,
- * when it is only waiting,
+ * Ending such a run with a plain `RUN_FINISHED` would say the work is over, when it is only waiting,
  * so the outcome names what it waits on and a client resumes by answering.
  */
 async function openInterrupts(
@@ -103,10 +100,8 @@ async function resolveResume(
     const clarification = await deps.clarificationRepository.load(ClarificationId.parse(entry.interruptId))
     if (clarification.workspaceId !== workspace.id)
       throw new NotFoundError(`Clarification "${entry.interruptId}" not found`)
-    // Answered, deferred, and set aside are three ways of settling a question,
-    // and every one of them releases the run.
-    // What is refused is a question still open,
-    // because that run is still rightly waiting.
+    // Answered, deferred, and set aside are three ways of settling a question, and every one of them releases the run.
+    // What is refused is a question still open, because that run is still rightly waiting.
     if (!outcomeOf(clarification))
       throw new ValidationError(`Clarification "${entry.interruptId}" is still open, so there is nothing to resume with`)
     if (!clarification.skillRunId)
@@ -126,8 +121,7 @@ async function resolveResume(
     throw new NotFoundError(`Run "${runId}" not found`)
 
   // The continuation carries the scope of the run it continues,
-  // so a document being read stays attributed to the run reading it,
-  // rather than to the sentence that released it.
+  // so a document being read stays attributed to the run reading it, rather than to the sentence that released it.
   return {
     skillId: parked.skillId,
     resumeSessionId: sessionId,
@@ -180,8 +174,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
   const router = new Hono()
 
   // The protocol's own shape.
-  // A client POSTs the conversation and reads the events,
-  // which is what asking a question already was.
+  // A client POSTs the conversation and reads the events, which is what asking a question already was.
   router.post('/', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const parsed = RunAgentInputSchema.safeParse(await context.req.json())
@@ -208,8 +201,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
       ?? (typeof forwarded.resumeSessionId === 'string' ? forwarded.resumeSessionId : undefined)
 
     // A turn released by a settled question carries the form of the run it takes up,
-    // since one conversation reads as one answer
-    // and half of it in blocks would not.
+    // since one conversation reads as one answer and half of it in blocks would not.
     const outputForm = resumed
       ? undefined
       : OutputForm.safeParse(forwarded.outputForm).data
@@ -267,8 +259,8 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
   router.get('/runs/:runId', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const runId = SkillRunId.parse(context.req.param('runId'))
-    // The events are the run, so replaying them answers as fully as the run
-    // endpoints do, and has to refuse the same runs they refuse.
+    // The events are the run, so replaying them answers as fully as the run endpoints do,
+    // and has to refuse the same runs they refuse.
     await requireVisibleRun(context, workspace, runId, deps.runRepository, deps.sessionShareRepository)
     const threadId = context.req.query('threadId') ?? runId
     const encoder = sseEncoder()
@@ -286,8 +278,7 @@ export function createAguiRouter(deps: AguiRouterDeps): Hono {
         return
       }
 
-      // Subscribe before reading the log,
-      // so the position snapshot says how much the live listener missed.
+      // Subscribe before reading the log, so the position snapshot says how much the live listener missed.
       const queue = createAsyncQueue<SkillEvent>()
       const { unsubscribe, positionAtSubscribe } = deps.skillRunner.subscribe(runId, event => queue.push(event))
       try {

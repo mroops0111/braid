@@ -30,10 +30,8 @@ interface EmbedResponse {
  * Embeds through any server speaking the OpenAI embeddings shape.
  *
  * That shape is what the field converged on.
- * One client therefore reaches a self-hosted Ollama, vLLM, or LM Studio,
- * as well as a hosted provider.
- * Which one is a deployment concern, and all that varies is the address,
- * the model name, and whether a key is required.
+ * One client therefore reaches a self-hosted Ollama, vLLM, or LM Studio, as well as a hosted provider.
+ * Which one is a deployment concern, and all that varies is the address, the model name, and whether a key is required.
  */
 export class OpenAiCompatibleEmbedder implements Embedder {
   private readonly fetchImpl: typeof globalThis.fetch
@@ -89,8 +87,7 @@ export class OpenAiCompatibleEmbedder implements Embedder {
  *
  * Some servers answer out of order and report the position in `index`.
  * Trusting arrival order would pair a node with another node's meaning.
- * Every vector involved would still be well formed,
- * so no later check would catch it.
+ * Every vector involved would still be well formed, so no later check would catch it.
  */
 function placeVectors(rows: unknown, expected: number): number[][] {
   if (!Array.isArray(rows) || rows.length !== expected)

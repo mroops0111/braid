@@ -26,11 +26,10 @@ interface IdTokenClaims {
  *
  * The same issuer that mints tokens for the MCP endpoint,
  * so a deployment configures one identity provider and both doors answer to it.
- * Google, or any other upstream,
- * is federated there rather than wired into Braid twice.
+ * Google, or any other upstream, is federated there rather than wired into Braid twice.
  *
- * Only the id token is read. Braid issues its own session afterwards,
- * so it never needs the access token,
+ * Only the id token is read.
+ * Braid issues its own session afterwards, so it never needs the access token,
  * and asking for an audience it never uses claims something it does not need.
  */
 export class OidcLoginProvider implements LoginProvider {

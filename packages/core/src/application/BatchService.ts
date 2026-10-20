@@ -40,8 +40,7 @@ export interface SourceUnitItem {
   readonly sourceName: string
   /**
    * What the document calls itself, from its frontmatter.
-   * A mirrored unit is named by its upstream id,
-   * so the filename alone says nothing about what the unit is,
+   * A mirrored unit is named by its upstream id, so the filename alone says nothing about what the unit is,
    * and a picker of bare numbers is unreadable.
    * Absent when the document declares no title.
    */
@@ -59,11 +58,11 @@ export interface BatchServiceDeps {
   historyService: HistoryService
   hitlService: HITLService
   batchPlanRepository: BatchPlanRepository
-  // Filesystem walk happens in infrastructure. The orchestrator just consumes the list.
+  /** Filesystem walk happens in infrastructure. The orchestrator just consumes the list. */
   unitLister: UnitLister
   /**
-   * Resolves the workspace's ontology plugin so the service can read its batch binding (per-unit skill,
-   * checkpoint config, derive skill).
+   * Resolves the workspace's ontology plugin,
+   * so the service can read its batch binding (per-unit skill, checkpoint config, derive skill).
    * Without this binding the framework has no opinion on which skills to dispatch.
    */
   pluginRegistry: PluginRegistry
@@ -71,8 +70,8 @@ export interface BatchServiceDeps {
   workspaceLock: WorkspaceLock
   clock: Clock
   /**
-   * Optional. When supplied,
-   * batch records a `SourceUnitObservation` observation after every successful unit extract,
+   * Optional.
+   * When supplied, batch records a `SourceUnitObservation` observation after every successful unit extract,
    * so Reactor / manual paths share the same diff primitive.
    * Absent in pure unit-test wiring. Production composition (`composeFsApp`) always provides it.
    */
@@ -82,8 +81,7 @@ export interface BatchServiceDeps {
 export interface StartBatchOptions {
   autoApply: boolean
   /**
-   * Bearer token captured from the caller's session,
-   * forwarded to every skill subprocess this batch spawns,
+   * Bearer token captured from the caller's session, forwarded to every skill subprocess this batch spawns,
    * so they can call back into the server API via the braid-core MCP gateway.
    * Absent when running in `BRAID_LOCAL_TRUST=true` mode (anonymous local dev),
    * where the auth middleware lets unauthenticated callers through.
@@ -93,13 +91,10 @@ export interface StartBatchOptions {
   startedBy: UserId
   /**
    * The unit paths to walk.
-   * Omitted, the batch walks every document the unit-bearing sources hold,
-   * which is what a first bootstrap wants.
+   * Omitted, the batch walks every document the unit-bearing sources hold, which is what a first bootstrap wants.
    *
-   * Given, it walks only those,
-   * which is what covering the documents a board column holds wants.
-   * Same plan, same checkpoints, same resume,
-   * so a partial run is not a second mechanism.
+   * Given, it walks only those, which is what covering the documents a board column holds wants.
+   * Same plan, same checkpoints, same resume, so a partial run is not a second mechanism.
    */
   scope?: readonly string[]
 }
@@ -115,8 +110,7 @@ type BatchCaller = Pick<SkillRunOptions, 'callerToken' | 'startedBy'>
  * Nobody watches a batch, whatever it does with what the runs produce.
  *
  * Bootstrap trades settled-ness for coverage on purpose,
- * so a run driven by one proposes what it has,
- * rather than stopping on the first thing it cannot decide.
+ * so a run driven by one proposes what it has, rather than stopping on the first thing it cannot decide.
  * What it could not decide is recorded on the node and raised as a question,
  * so the doubt is visible in the graph rather than lost in a silent guess.
  * It also decides what the run produces for a reader,
@@ -183,7 +177,7 @@ export class BatchService {
     })
   }
 
-  // Promote stale running plans to failed at boot, so the UI never shows a frozen spinner from a previous crash.
+  /** Promote stale running plans to failed at boot, so the UI never shows a frozen spinner from a previous crash. */
   async reconcileAfterBoot(workspaceId: WorkspaceId): Promise<void> {
     const workspace = await this.deps.workspaceService.findById(workspaceId)
     const plan = await this.deps.batchPlanRepository.load(workspace)
@@ -258,9 +252,11 @@ export class BatchService {
     })
   }
 
-  // Move a terminal plan to `archived`. The Studio Batch page treats it like no active plan,
-  // but keeps the report browsable in the PreStart slot.
-  // Recorded in git history as a `batch-archive` commit.
+  /**
+   * Move a terminal plan to `archived`.
+   * The Studio Batch page treats it like no active plan, but keeps the report browsable in the PreStart slot.
+   * Recorded in git history as a `batch-archive` commit.
+   */
   async archive(workspaceId: WorkspaceId): Promise<BatchPlan> {
     return this.deps.workspaceLock.run(workspaceId, async () => {
       const workspace = await this.deps.workspaceService.findById(workspaceId)
@@ -443,10 +439,9 @@ export class BatchService {
       await service.recordObservation(workspace.id, unit.sourceId, unit.scopeHint, runId)
     }
     catch {
-      // Observation recording is best-effort. The extract itself already succeeded,
-      // and failing to record it must not fail the batch.
-      // Reactor sees the unit as changed next cycle and re-extracts,
-      // which is a recoverable state.
+      // Observation recording is best-effort.
+      // The extract itself already succeeded, and failing to record it must not fail the batch.
+      // Reactor sees the unit as changed next cycle and re-extracts, which is a recoverable state.
     }
   }
 
@@ -493,8 +488,7 @@ export class BatchService {
         {
           ...caller,
           ...UNATTENDED,
-          // A retry continues the agent's own session,
-          // so a unit interrupted part way does not read the document again.
+          // A retry continues the agent's own session, so a unit interrupted part way does not read the document again.
           ...(unit.resumeSessionId ? { resumeSessionId: unit.resumeSessionId } : {}),
         },
       )
@@ -566,8 +560,7 @@ export class BatchService {
    *
    * The before-and-after diff alone would claim anything anyone else created,
    * which for an auto-applying batch means landing a change nobody reviewed.
-   * A record naming this run is the only one it may claim,
-   * and one naming no run at all was authored by a person.
+   * A record naming this run is the only one it may claim, and one naming no run at all was authored by a person.
    */
   private async collectUnitOutput(
     workspaceId: WorkspaceId,
@@ -591,8 +584,8 @@ export class BatchService {
     }
   }
 
-  // Drives a single skill run end to end with autoApply wiring. Streams proposals as they're created,
-  // waits for the subprocess to exit, then sweeps anything the stream missed.
+  // Drives a single skill run end to end with autoApply wiring.
+  // Streams proposals as they're created, waits for the subprocess to exit, then sweeps anything the stream missed.
   // Shared by runUnit and runCheckpointPhase so both get the same autoApply.
   private async runSkillWithAutoApply(
     workspace: Workspace,
@@ -624,8 +617,7 @@ export class BatchService {
     return this.deps.eventBus.subscribe(workspaceId, (event) => {
       if (event.type !== 'proposal.created')
         return
-      // The bus is workspace-wide,
-      // so a proposal from anywhere else arrives here too.
+      // The bus is workspace-wide, so a proposal from anywhere else arrives here too.
       // Applying one without review because a batch happened to be running,
       // is the reviewer's decision taken away from them.
       if (event.skillRunId !== runId)
@@ -723,8 +715,7 @@ export class BatchService {
   }
 }
 
-// A quota or credential fault belongs to the account,
-// not to the document that happened to hit it,
+// A quota or credential fault belongs to the account, not to the document that happened to hit it,
 // so every remaining unit would fail the same way.
 // Matched on the agent's own wording, since the runner surfaces it as text.
 const UNRECOVERABLE_PATTERNS: readonly RegExp[] = [
@@ -745,8 +736,7 @@ function isUnrecoverable(error: string | undefined): boolean {
 /**
  * Whether the run should give up after the unit that just finished.
  *
- * A recognised account-level fault stops on its own,
- * and a streak stops whatever the wording,
+ * A recognised account-level fault stops on its own, and a streak stops whatever the wording,
  * so an unfamiliar phrasing still cannot burn the plan.
  * The counter resets on success, since a single bad document is not a streak.
  */
@@ -829,8 +819,7 @@ async function waitForCompletion(runner: SkillRunner, runId: SkillRunId): Promis
 
 /**
  * Narrow the start options down to what a spawned run needs.
- * Passing the whole options object would leak batch-only fields,
- * such as the mode, into every skill invocation.
+ * Passing the whole options object would leak batch-only fields, such as the mode, into every skill invocation.
  */
 function callerFrom(options: BatchCaller): BatchCaller {
   return {

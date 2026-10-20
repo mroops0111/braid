@@ -105,10 +105,8 @@ describe('previewProposal', () => {
   })
 
   it('does not mark a node as updated when the metadata contents are equivalent', () => {
-    // Two sourceReferences with the same content but constructed with
-    // different object literal key orders should compare equal under
-    // the structural comparator (the previous JSON.stringify-based
-    // check was order-sensitive).
+    // Two sourceReferences with the same content but different object literal key orders compare equal.
+    // The structural comparator ignores key order, where the previous JSON.stringify-based check was order-sensitive.
     const refA = { snippet: 'x', sourceId: 'prd' as never, location: { startLine: 1, uri: 'doc.md' as never } }
     const refB = { sourceId: 'prd' as never, location: { uri: 'doc.md' as never, startLine: 1 }, snippet: 'x' }
     const base = snapshot([node('n1', { metadata: { sourceReferences: [refA] } })])

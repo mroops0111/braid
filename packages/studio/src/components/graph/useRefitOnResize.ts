@@ -11,8 +11,7 @@ import { useEffect, useRef } from 'react'
  *
  * The caller decides what to re-apply, because the intent differs.
  * A focused neighbourhood wants fitting, a selected node wants centring,
- * and refitting the second would throw away the position,
- * the reader just arrived at.
+ * and refitting the second would throw away the position, the reader just arrived at.
  *
  * Width alone, not height.
  * A banner appearing changes the height without moving anything sideways,
@@ -40,8 +39,7 @@ export function useRefitOnResize(
         return
       const previous = lastWidthRef.current
       lastWidthRef.current = width
-      // The first reading sets the baseline rather than re-applying,
-      // since mount has already positioned the viewport.
+      // The first reading sets the baseline rather than re-applying, since mount has already positioned the viewport.
       if (previous === null || previous === width)
         return
       reapplyRef.current()

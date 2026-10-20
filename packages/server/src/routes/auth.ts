@@ -26,9 +26,8 @@ export interface AuthRouterDeps {
   /**
    * The one way in this deployment offers, or none.
    *
-   * Exactly one, because two means two identities for one person,
-   * and no rule for which wins. An empty list mounts no start route at all,
-   * so a misconfigured server says so at the door rather than mid-flow.
+   * Exactly one, because two means two identities for one person, and no rule for which wins.
+   * An empty list mounts no start route at all, so a misconfigured server says so at the door rather than mid-flow.
    */
   loginProviders: readonly LoginProvider[]
   /**
@@ -46,8 +45,7 @@ export interface AuthRouterDeps {
   studioUrl: string
   /**
    * Whether a caller must authenticate.
-   * Mirrored into `/auth/config.requiresAuth`,
-   * telling the Studio whether to gate behind the Login page.
+   * Mirrored into `/auth/config.requiresAuth`, telling the Studio whether to gate behind the Login page.
    * When false, anonymous sessions fall through, fine for a sidecar or dev.
    * When true, the Login page is mandatory.
    */
@@ -73,8 +71,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   const router = new Hono()
   // In-memory pending flows.
   // A single-process server is the only supported topology in v0.2.
-  // HA or multi-process would need a shared store,
-  // but that's well past current scope.
+  // HA or multi-process would need a shared store, but that's well past current scope.
   const pending = new Map<string, PendingFlow>()
 
   function reapExpired(): void {
@@ -137,11 +134,10 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
     })
   }
 
-  // Revoking Braid's session is only half of it. The provider keeps its own,
-  // so the answer carries where to end that one too,
+  // Revoking Braid's session is only half of it.
+  // The provider keeps its own, so the answer carries where to end that one too,
   // and the caller sends the browser there.
-  // Null when the provider offers no such endpoint,
-  // which leaves the old behaviour of a purely local sign-out.
+  // Null when the provider offers no such endpoint, which leaves the old behaviour of a purely local sign-out.
   router.post('/logout', async (context) => {
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
@@ -155,11 +151,9 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   })
 
   router.get('/whoami', async (context) => {
-    // `/auth/*` is in the auth middleware's PUBLIC_PATH_PREFIXES,
-    // so the Bearer header isn't validated upstream.
+    // `/auth/*` is in the auth middleware's PUBLIC_PATH_PREFIXES, so the Bearer header isn't validated upstream.
     // Whoami exists precisely to identify the caller,
-    // so resolve the Bearer token here directly,
-    // rather than trusting the auth middleware's local-user fallback.
+    // so resolve the Bearer token here directly, rather than trusting the auth middleware's local-user fallback.
     // An absent or invalid token yields `{ user: null }`.
     const header = context.req.header('Authorization')
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : null
@@ -187,8 +181,7 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
   })
 
   // Hint at the configured studio URL and auth mode,
-  // so the Login page can decide whether to gate at all,
-  // single-tenant skips it, and which door to knock on.
+  // so the Login page can decide whether to gate at all, single-tenant skips it, and which door to knock on.
   router.get('/config', (context) => {
     return context.json({
       // Null where no provider is configured, which is what hides the button.
@@ -206,19 +199,15 @@ export function createAuthRouter(deps: AuthRouterDeps): Hono {
  * Resolve the person to a user record, creating one on first sign-in.
  *
  * Two join keys, in order.
- * `sub` is tried first because it survives an email change,
- * but it only names the person inside one provider,
+ * `sub` is tried first because it survives an email change, but it only names the person inside one provider,
  * so it stops matching the moment an authorization server takes over the login.
  * Email is what carries across that move,
- * and adopting the record rather than forking it keeps a person's workspaces,
- * runs, and proposals attached to them.
+ * and adopting the record rather than forking it keeps a person's workspaces, runs, and proposals attached to them.
  *
- * The record keeps the subject it was created with,
- * since that field is immutable by design,
+ * The record keeps the subject it was created with, since that field is immutable by design,
  * so an adopted record is found by email every time.
  * That is a lookup per sign-in against a small file,
- * and the alternative is making the join key rewritable,
- * which is a worse trade.
+ * and the alternative is making the join key rewritable, which is a worse trade.
  *
  * An admin list edited after the fact promotes on the next sign-in,
  * so redeploying with a new roster never needs manual surgery on the registry.

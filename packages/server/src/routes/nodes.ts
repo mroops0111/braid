@@ -6,9 +6,8 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { ontologyFor, type OntologyLookupDeps } from './_ontology.js'
 import { mcpReadTool, NotFoundResponse, ValidationFailureResponse, WorkspaceIdParam } from './_shared.js'
 
-// Unfiltered, this endpoint returns the whole graph,
-// which on a mature one is most of a megabyte. A caller wanting more says so,
-// and a caller wanting all of it wants the snapshot instead.
+// Unfiltered, this endpoint returns the whole graph, which on a mature one is most of a megabyte.
+// A caller wanting more says so, and a caller wanting all of it wants the snapshot instead.
 const DEFAULT_LIMIT = 20
 // A ceiling on what one call can cost a caller's context.
 // Reading the whole graph is what the snapshot is for.
@@ -40,8 +39,7 @@ const NodeListResponse = z.object({
 export interface NodesRouterDeps extends OntologyLookupDeps {
   modelService: ModelService
   /**
-   * Absent when the deployment configures no embedding backend,
-   * which makes `semantic` a no-op rather than an error.
+   * Absent when the deployment configures no embedding backend, which makes `semantic` a no-op rather than an error.
    */
   embeddingService?: EmbeddingService
 }
@@ -91,10 +89,8 @@ const listQuery = z.object({
   }),
   status: z.union([NodeStatus, z.array(NodeStatus)]).optional().openapi({ description: 'Filter by node status. Pass one or many.' }),
   q: z.string().optional().openapi({ description: 'Case-insensitive substring match against node name and description.' }),
-  // Parsed as a string because a query parameter is one,
-  // and declared as a boolean because that is what it means.
-  // `coerce.boolean` gets the first half wrong,
-  // running `Boolean(value)` so that "false" arrives as true.
+  // Parsed as a string because a query parameter is one, and declared as a boolean because that is what it means.
+  // `coerce.boolean` gets the first half wrong, running `Boolean(value)` so that "false" arrives as true.
   semantic: z.stringbool().default(true).openapi({
     // Spelling out `type` replaces the generated schema, it does not merge,
     // so the default has to be restated here or it is lost.
@@ -140,8 +136,7 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
     // so they run once and both retrievers rank within what survives them.
     // Checked against the workspace's own ontology,
     // because an undefined type is a mistake, not a filter matching nothing.
-    // Answering 200 and an empty list hides a typo behind a true absence,
-    // and leaves a caller with nothing to correct.
+    // Answering 200 and an empty list hides a typo behind a true absence, and leaves a caller with nothing to correct.
     if (types) {
       const ontology = await ontologyFor(deps, workspaceId)
       const known = new Set(ontology.nodeTypes.map(nodeType => nodeType.id))
@@ -166,8 +161,7 @@ export function createNodesRouter(deps: NodesRouterDeps): OpenAPIHono {
       .filter((node): node is GraphNode => node !== undefined)
 
     // Rank fusion rather than a blended score,
-    // since a substring hit count and a cosine distance,
-    // have no common scale to be weighed on.
+    // since a substring hit count and a cosine distance, have no common scale to be weighed on.
     const fused = fuseByRank([lexical, semanticNodes], node => node.id)
     return context.json({ items: capped(fused, limit), total: fused.length }, 200)
   })

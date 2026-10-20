@@ -2,16 +2,15 @@
 export interface OAuthProviderInfo {
   readonly id: 'google' | 'github'
   readonly label: string
-  // Secret-store namespace holding this provider's tokens.
+  /** Secret-store namespace holding this provider's tokens. */
   readonly namespace: string
-  // Source loader kind whose sources authenticate through this provider.
+  /** Source loader kind whose sources authenticate through this provider. */
   readonly loaderKind: string
 }
 
 /**
- * The single place a provider's id, label, token namespace,
- * and loader kind are tied together. Routes and the composition root
- * derive their lists from this,
+ * The single place a provider's id, label, token namespace, and loader kind are tied together.
+ * Routes and the composition root derive their lists from this,
  * so a new provider is one entry here rather than edits across files.
  */
 export const OAUTH_PROVIDERS: readonly OAuthProviderInfo[] = [

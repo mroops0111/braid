@@ -87,8 +87,7 @@ describe('parseClaudeLine', () => {
   })
 
   it('leaves a successful result to speak through usage alone, not a second copy of the answer', () => {
-    // `result` restates the last assistant message,
-    // which the assistant envelope already emitted.
+    // `result` restates the last assistant message, which the assistant envelope already emitted.
     const events = parse({ type: 'result', is_error: false, result: 'done', total_cost_usd: 1.5 })
     expect(events.some(event => event.type === 'message')).toBe(false)
     expect(events).toContainEqual(expect.objectContaining({ type: 'usage', costUsd: 1.5 }))

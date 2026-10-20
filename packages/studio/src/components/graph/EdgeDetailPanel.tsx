@@ -12,8 +12,7 @@ interface EdgeDetailPanelProps {
   onClose: () => void
   /**
    * Click on the From or To node row jumps to that node's detail.
-   * The parent is expected to swap edge selection for node selection,
-   * to keep the mutual-exclusion invariant.
+   * The parent is expected to swap edge selection for node selection, to keep the mutual-exclusion invariant.
    */
   onSelectNode: (nodeId: NodeId) => void
   /**
@@ -25,9 +24,8 @@ interface EdgeDetailPanelProps {
 
 /**
  * Shared right-side detail panel for selected edges.
- * Mirrors the structure of `NodeDetailPanel`,
- * so users get the same vocabulary, Sources section and Centre-in-graph footer,
- * regardless of which kind of element they pick.
+ * Mirrors the structure of `NodeDetailPanel`, so users get the same vocabulary,
+ * Sources section and Centre-in-graph footer, regardless of which kind of element they pick.
  * Edge-specific affordances are a typed pill that matches the palette,
  * plus From and To rows that jump the user to the relevant node.
  */

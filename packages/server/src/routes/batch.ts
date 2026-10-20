@@ -10,8 +10,8 @@ import { loadWorkspaceById, resolvePerUnitSkillId } from './helpers.js'
 
 const StartBody = z.object({
   autoApply: z.boolean(),
-  // Absent walks every document. Present walks only these,
-  // which is how a board column covers what it holds without a second run.
+  // Absent walks every document.
+  // Present walks only these, which is how a board column covers what it holds without a second run.
   scope: z.array(z.string().min(1)).min(1).optional(),
 })
 
@@ -27,8 +27,7 @@ export function createBatchRouter(deps: BatchRouterDeps): Hono {
 
   // A batch is the per-unit skill run many times over,
   // so whoever may run that skill may drive the batch, and nobody else.
-  // Reading the plan is left open, since it is the same standing
-  // the coverage board already gives every member.
+  // Reading the plan is left open, since it is the same standing the coverage board already gives every member.
   router.on('POST', ['/', '/stop', '/resume', '/archive'], requirePermission('skill.run', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const skillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)

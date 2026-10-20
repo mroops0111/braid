@@ -4,8 +4,7 @@ import { formatTimestamp, groupBySession } from '../../src/lib/conversations'
 
 describe('formatTimestamp', () => {
   it('formats a valid ISO timestamp as YYYY-MM-DDTHH:mm in local time', () => {
-    // Pin the input to UTC and assert via the formatter's local-time output,
-    // rather than by hard-coding a result.
+    // Pin the input to UTC and assert via the formatter's local-time output, rather than by hard-coding a result.
     // Otherwise the test depends on whichever TZ CI runs in.
     const iso = '2026-05-21T14:30:00Z'
     const d = new Date(iso)
@@ -49,8 +48,7 @@ describe('groupBySession', () => {
   })
 
   it('groups runs that share a sessionId and orders runs within a group oldest-first', () => {
-    // API delivers newest-first, and groupBySession reverses inside a session,
-    // so the transcript replays top-to-bottom.
+    // API delivers newest-first, and groupBySession reverses inside a session, so the transcript replays top-to-bottom.
     const groups = groupBySession([
       rec({ runId: 'r3', sessionId: 'sess-1', startedAt: '2026-05-21T10:30:00Z' }),
       rec({ runId: 'r2', sessionId: 'sess-1', startedAt: '2026-05-21T10:20:00Z' }),

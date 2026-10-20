@@ -93,10 +93,8 @@ function viewsRoot(workspace: Workspace): string {
 /**
  * A path a caller asked for, resolved under a root or refused.
  *
- * A path is a string somebody chose,
- * so one that climbs out would read any file it can reach.
- * Resolving first and checking the result,
- * is what makes a name that walks upwards fail rather than escape.
+ * A path is a string somebody chose, so one that climbs out would read any file it can reach.
+ * Resolving first and checking the result, is what makes a name that walks upwards fail rather than escape.
  */
 function within(root: string, asked: string): string | undefined {
   const full = join(root, asked)
@@ -108,8 +106,7 @@ function within(root: string, asked: string): string | undefined {
  * Every file under a directory, however deeply it is nested.
  *
  * A name beginning with a dot is passed over.
- * Nothing that writes a view names one that way,
- * so anything found under one belongs to the operating system,
+ * Nothing that writes a view names one that way, so anything found under one belongs to the operating system,
  * and a reader offered it would be offered a file nobody made.
  */
 async function walk(root: string, at: string = root): Promise<readonly string[]> {

@@ -23,10 +23,8 @@ export interface PluginSourcedSkill extends PluginSkillRef {
   readonly contributedBy: PluginId
 }
 
-// Compose a plugin skill's id as `<skillNamespace>:<verb>`,
-// the verb being the skill directory's basename.
-// Fail loudly when a plugin ships skills but declares no namespace,
-// so the mistake surfaces at registration.
+// Compose a plugin skill's id as `<skillNamespace>:<verb>`, the verb being the skill directory's basename.
+// Fail loudly when a plugin ships skills but declares no namespace, so the mistake surfaces at registration.
 function composePluginSkillId(plugin: Plugin, skill: PluginSkillRef): SkillId {
   if (plugin.skillNamespace === undefined || plugin.skillNamespace.length === 0)
     throw new ValidationError(`Plugin "${plugin.id}" ships skills but declares no skillNamespace`)
@@ -57,8 +55,7 @@ export class PluginRegistry {
       throw new ConflictError(`Plugin "${plugin.id}" is already registered`)
     }
     // Catch skill-id collisions across plugins at register time,
-    // so the failure points at the second plugin to register,
-    // not at some later workspace.list() call.
+    // so the failure points at the second plugin to register, not at some later workspace.list() call.
     for (const skill of plugin.skills ?? []) {
       const id = composePluginSkillId(plugin, skill)
       const owner = this.skillContributors.get(id)
@@ -70,8 +67,7 @@ export class PluginRegistry {
   }
 
   /**
-   * All skills declared by registered plugins,
-   * tagged with the plugin id that contributed each.
+   * All skills declared by registered plugins, tagged with the plugin id that contributed each.
    * Consumers like FsSkillRegistry mount these under the `plugin` skill origin.
    */
   pluginSkills(): readonly PluginSourcedSkill[] {
@@ -85,8 +81,7 @@ export class PluginRegistry {
 
   /**
    * Every registered plugin's reference directory, keyed by its namespace.
-   * SubprocessSkillRunner mounts each and hands skills the absolute path,
-   * so no SKILL.md writes a location.
+   * SubprocessSkillRunner mounts each and hands skills the absolute path, so no SKILL.md writes a location.
    */
   pluginReferenceDirs(): readonly PluginSourcedReferenceDir[] {
     const result: PluginSourcedReferenceDir[] = []

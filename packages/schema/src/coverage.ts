@@ -7,14 +7,11 @@ import { SourceUnitSha } from './source-unit.js'
  * Where one source unit stands in relation to the model.
  *
  * Mechanical rather than semantic, so it holds for any ontology.
- * What a unit means, and which steps it passes through,
- * are the ontology's to declare, and ride on `stage` instead.
+ * What a unit means, and which steps it passes through, are the ontology's to declare, and ride on `stage` instead.
  *
- * `sourceChanged` and `conflicted` are two different kinds of out of date,
- * and are kept apart on purpose.
+ * `sourceChanged` and `conflicted` are two different kinds of out of date, and are kept apart on purpose.
  * A changed source is fixed by reading it again, which is mechanical.
- * A conflict is the model and its evidence disagreeing,
- * which needs a person to say which is right.
+ * A conflict is the model and its evidence disagreeing, which needs a person to say which is right.
  */
 export const CoverageState = z.enum([
   'uncovered',
@@ -30,11 +27,9 @@ export type CoverageState = z.infer<typeof CoverageState>
 /**
  * The order a card is judged in when more than one state is true.
  *
- * A unit can be both changed at source and holding a conflict,
- * and the board has one column per card,
+ * A unit can be both changed at source and holding a conflict, and the board has one column per card,
  * so the tie is broken somewhere stated rather than by whichever check ran first.
- * Reading again settles a changed source and makes any conflict moot,
- * so it comes first.
+ * Reading again settles a changed source and makes any conflict moot, so it comes first.
  */
 export const COVERAGE_STATE_PRECEDENCE: readonly CoverageState[] = [
   'running',
@@ -82,9 +77,8 @@ export const CoverageCard = z.object({
   /**
    * The nodes whose evidence points inside this document.
    *
-   * Carried rather than counted, because a reader who sees twelve nodes,
-   * resting on a document, wants to look at those twelve,
-   * and a count only makes them go and find them.
+   * Carried rather than counted, because a reader who sees twelve nodes, resting on a document,
+   * wants to look at those twelve, and a count only makes them go and find them.
    */
   nodeIds: z.array(NodeId),
 })
@@ -93,11 +87,9 @@ export type CoverageCard = z.infer<typeof CoverageCard>
 /**
  * One step of the pipeline the workspace's ontology declares.
  *
- * A step that works on the graph as a whole names no document,
- * so what it leaves waiting has no card to sit on.
+ * A step that works on the graph as a whole names no document, so what it leaves waiting has no card to sit on.
  * It is carried here instead,
- * because a board silently dropping half its pipeline's output,
- * is worse than one with no pipeline at all.
+ * because a board silently dropping half its pipeline's output, is worse than one with no pipeline at all.
  */
 export const CoverageStage = z.object({
   skillId: SkillId,
@@ -117,16 +109,14 @@ export const CoverageStage = z.object({
   proposalIds: z.array(ProposalId),
   clarificationIds: z.array(ClarificationId),
   /**
-   * Answered questions this step would turn into changes,
-   * when it is the one that reads them.
+   * Answered questions this step would turn into changes, when it is the one that reads them.
    * Somebody who has worked through a queue of standing questions,
    * needs to know there is something to run, and this count says so.
    */
   answeredIds: z.array(ClarificationId),
   /**
    * The last time this step ran across the whole graph.
-   * A per-document step has many, one per document,
-   * so it carries none and its standing is read off the cards instead.
+   * A per-document step has many, one per document, so it carries none and its standing is read off the cards instead.
    */
   lastRun: CoverageRun.optional(),
 })
@@ -146,8 +136,7 @@ export const CoverageBoard = z.object({
   /**
    * Whether a build is already under way here.
    *
-   * The graph only accumulates,
-   * so builds run one at a time and the server refuses a second.
+   * The graph only accumulates, so builds run one at a time and the server refuses a second.
    * Saying so here lets the surface stop offering what would be refused,
    * rather than letting a person find out by error.
    */

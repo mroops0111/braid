@@ -2,9 +2,8 @@ import type { StorageKey } from './storage.js'
 import { useCallback, useSyncExternalStore } from 'react'
 import { readStored, writeStored } from './storage.js'
 
-// One set for every key, since a preference changes rarely
-// and telling a handful of components to re-read costs less than
-// keeping a subscriber list per key correct.
+// One set serves every key, since a preference changes rarely.
+// Telling a handful of components to re-read costs less than keeping a subscriber list per key correct.
 const listeners = new Set<() => void>()
 
 /**
@@ -16,10 +15,8 @@ const listeners = new Set<() => void>()
  *
  * `resolve` turns what was stored into a value this render may use.
  * It runs on every render rather than being memoised,
- * so a caller can resolve against something that changes,
- * such as the audiences an ontology currently declares.
- * Returning a fallback there is what keeps a stale stored value
- * from showing an empty surface.
+ * so a caller can resolve against something that changes, such as the audiences an ontology currently declares.
+ * Returning a fallback there is what keeps a stale stored value from showing an empty surface.
  */
 export function usePreference<T extends string>(
   key: StorageKey,

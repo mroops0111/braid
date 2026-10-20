@@ -3,10 +3,8 @@ import type { EvidenceSupport, FindingSide } from '@braidhq/schema'
 /**
  * How strongly a finding's own references carry it.
  *
- * A disagreement is only as good as both halves of it,
- * so the weaker side decides.
- * Provenance is the axis that matters,
- * because a location the graph already cites has survived a review,
+ * A disagreement is only as good as both halves of it, so the weaker side decides.
+ * Provenance is the axis that matters, because a location the graph already cites has survived a review,
  * and one this run opened has not.
  *
  * - `corroborated`: every side rests on at least one reference the graph cites.

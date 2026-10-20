@@ -4,12 +4,12 @@ import { getToken as readToken, setToken as writeToken } from './tokenStore'
 
 /**
  * Storage layout (localStorage, per-origin):
+ *
  *   braid:remotes         RemoteServer[]   saved remote entries
  *   braid:activeRemoteId  string           which remote is current
  *
- * Per-remote Bearer tokens live in `tokenStore` (localStorage on web,
- * OS keyring on Tauri). `LOCAL_REMOTE_ID` is synthesised on read,
- * never stored, so the user can't delete the embedded sidecar entry.
+ * Per-remote Bearer tokens live in `tokenStore` (localStorage on web, OS keyring on Tauri).
+ * `LOCAL_REMOTE_ID` is synthesised on read, never stored, so the user can't delete the embedded sidecar entry.
  */
 export interface RemoteServer {
   id: string
@@ -58,8 +58,7 @@ function writeJson<T>(key: string, value: T): void {
  *
  * The legacy keys are dropped once read.
  * Leaving them was a bet on a downgrade,
- * and the cost of that bet is a credential sitting in storage
- * that nothing reads and nothing rotates.
+ * and the cost of that bet is a credential sitting in storage that nothing reads and nothing rotates.
  */
 let legacyMigrationDone = false
 

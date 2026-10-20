@@ -33,8 +33,7 @@ describe('proposalSubmission', () => {
     expect(proposalSubmission.refuse(RUN, wrote({ blocking: 1 }))).toMatch(/ct-0/)
   })
 
-  // Asking is what makes a run stop,
-  // so having asked is checked before having proposed comes up,
+  // Asking is what makes a run stop, so having asked is checked before having proposed comes up,
   // and the message that fits is the first one.
   it('names the proposal it already made when both are true', () => {
     expect(proposalSubmission.refuse(RUN, wrote({ proposals: 1, blocking: 1 }))).toMatch(/already proposed/)

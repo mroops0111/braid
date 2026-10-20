@@ -10,8 +10,7 @@ const CLAUDE_CODE_KIND = 'claude-code' as AgentKind
  * The composition root registers it against the PluginRegistry,
  * and composeFsApp builds one server-wide binding for the active agent,
  * rather than importing ClaudeCodeAgentBinding directly.
- * Other agents, such as anthropic-api, cursor, ollama, or codex,
- * register the same way under a different kind.
+ * Other agents, such as anthropic-api, cursor, ollama, or codex, register the same way under a different kind.
  */
 export const claudeCodeAgentPlugin: AgentPlugin = defineAgentPlugin({
   kind: CLAUDE_CODE_KIND,

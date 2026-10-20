@@ -18,10 +18,12 @@ import { ConflictError, NotFoundError } from '../errors.js'
 /**
  * Lifecycle. From pending a clarification is either answered then applied, or skipped.
  *
- * `markAnswered` records the user's choice but does NOT mutate the graph,
- * the resolution is snapshotted onto the clarification and the ddd:clarify skill is expected to wrap it into a Proposal.
- * Once that Proposal lands the clarification transitions to `applied` via `markApplied`,
- * which only stamps the (optional) proposalId, the actual graph mutation happens inside `HITLService.applyProposal`.
+ * `markAnswered` records the user's choice but does NOT mutate the graph.
+ * The resolution is snapshotted onto the clarification,
+ * and the ddd:clarify skill is expected to wrap it into a Proposal.
+ * Once that Proposal lands, the clarification transitions to `applied` via `markApplied`,
+ * which only stamps the (optional) proposalId.
+ * The actual graph mutation happens inside `HITLService.applyProposal`.
  * proposalId is omitted when the chosen candidate's resolution had no graph impact, so no Proposal was produced.
  *
  * Keeping these two transitions distinct preserves the invariant that only HITLService.applyProposal writes Kùzu.
@@ -100,8 +102,7 @@ export class Clarification {
    * Stop the run waiting on this, without throwing the question away.
    *
    * Skipping discards.
-   * Deferring keeps the question and only gives up the conversation,
-   * so it goes back to pending and stands on its own.
+   * Deferring keeps the question and only gives up the conversation, so it goes back to pending and stands on its own.
    * Answering it later records the decision for a step that reads answered,
    * since the run that asked has by then carried on without it.
    */

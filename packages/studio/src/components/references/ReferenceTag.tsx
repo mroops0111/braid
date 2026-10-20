@@ -21,17 +21,14 @@ const BASE_TOKEN_CLASS = 'rounded-sm px-1 py-px transition-colors'
 /**
  * An id nobody could resolve is an address, so it is set as one.
  * A resolved reference shows the name instead, in the surrounding type,
- * because a reader meeting `ctx.remoteSigningTask` mid-sentence,
- * has been handed the machinery rather than the thing.
- * The id stays a hover away,
- * where somebody who wants to paste it can still reach it.
+ * because a reader meeting `ctx.remoteSigningTask` mid-sentence, has been handed the machinery rather than the thing.
+ * The id stays a hover away, where somebody who wants to paste it can still reach it.
  */
 const UNRESOLVED_TOKEN_CLASS = 'font-mono'
 
 /**
  * Renders one reference as a highlighted token with a hover card.
- * Kind-agnostic by design, everything it shows comes from the registry,
- * so a new kind needs no change here.
+ * Kind-agnostic by design, everything it shows comes from the registry, so a new kind needs no change here.
  */
 export function ReferenceTag({ reference, className }: ReferenceTagProps) {
   const { t } = useTranslation()

@@ -27,18 +27,14 @@ export interface McpLoaderDeps {
 }
 
 /**
- * Mirror an API-backed source into markdown, one file per item,
- * by calling one MCP tool until its pages run out.
+ * Mirror an API-backed source into markdown, one file per item, by calling one MCP tool until its pages run out.
  *
- * The loader knows a tool name and where the parts of a reply live,
- * and nothing about any product.
- * Both are configuration whose defaults describe one envelope,
- * so a gateway shaped to emit it needs only a URL here,
+ * The loader knows a tool name and where the parts of a reply live, and nothing about any product.
+ * Both are configuration whose defaults describe one envelope, so a gateway shaped to emit it needs only a URL here,
  * and a server that emits something else is reached by naming its shape instead.
  *
  * The destination is owned by this loader.
- * An item is written only when its rendering differs,
- * so an untouched one stays byte-identical,
+ * An item is written only when its rendering differs, so an untouched one stays byte-identical,
  * and the fingerprints downstream do not churn.
  */
 export function createMcpLoader(deps: McpLoaderDeps = {}): SourceLoaderPlugin {
@@ -67,8 +63,7 @@ export function createMcpLoader(deps: McpLoaderDeps = {}): SourceLoaderPlugin {
     provision: async (config, destination) => {
       await mkdir(destination, { recursive: true })
       // No floor on the first pass, so the corpus arrives whole.
-      // Narrowing it is the tool's own business,
-      // through a default on its `since`.
+      // Narrowing it is the tool's own business, through a default on its `since`.
       const { url, walked } = await mirror(config, undefined)
       for (const item of walked.items)
         await writeIfChanged(join(destination, item.filename), item.markdown)
@@ -86,8 +81,7 @@ export function createMcpLoader(deps: McpLoaderDeps = {}): SourceLoaderPlugin {
       const previous = await readCursor(destination)
       const url = interpolateEnv(config.url, process.env)
       // A mark recorded against a different target says nothing about this one,
-      // so retargeting a source re-reads it whole,
-      // rather than silently skipping everything older.
+      // so retargeting a source re-reads it whole, rather than silently skipping everything older.
       const since = previous?.url === url && previous.tool === config.tool
         ? previous.since
         : undefined
@@ -126,8 +120,7 @@ async function writeAll(destination: string, items: readonly MirroredItem[]): Pr
       unchanged++
   }
   // Nothing is deleted here.
-  // An item the tool stops returning may simply be older than the floor,
-  // so removal needs a full re-read to be safe.
+  // An item the tool stops returning may simply be older than the floor, so removal needs a full re-read to be safe.
   return { added, updated, unchanged }
 }
 
@@ -145,8 +138,7 @@ async function writeIfChanged(path: string, content: string): Promise<'added' | 
   return existing === undefined ? 'added' : 'updated'
 }
 
-// The dotfile keeps this out of the unit listing,
-// which skips names beginning with a dot.
+// The dotfile keeps this out of the unit listing, which skips names beginning with a dot.
 async function readCursor(destination: string): Promise<CursorFile | undefined> {
   try {
     return JSON.parse(await readFile(join(destination, CURSOR_FILENAME), 'utf-8')) as CursorFile

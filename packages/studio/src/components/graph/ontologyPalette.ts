@@ -16,8 +16,7 @@ export interface OntologyPalette {
   /** Inline `style` object for a solid dot in the same colour. */
   nodeDotStyle: (type: NodeTypeId) => CSSProperties
   /**
-   * Sort types in the order the ontology declared them,
-   * unknown types fall through to alphabetical at the end.
+   * Sort types in the order the ontology declared them, unknown types fall through to alphabetical at the end.
    */
   sortNodeTypes: <T extends NodeTypeId>(types: readonly T[]) => T[]
 }
@@ -26,17 +25,14 @@ const FALLBACK_COLOR = 'oklch(0.55 0 0)'
 
 /**
  * Build a palette from a resolved Ontology response.
- * Plugin authors who supply `color` on each descriptor,
- * get exactly what they wrote.
+ * Plugin authors who supply `color` on each descriptor, get exactly what they wrote.
  * Descriptors without `color` get a deterministic hash-of-id colour,
  * so an ontology that skips colours still renders distinguishable types.
- * Pass `undefined` while the query is loading,
- * and every lookup returns the muted fallback.
+ * Pass `undefined` while the query is loading, and every lookup returns the muted fallback.
  *
  * Returns inline style objects rather than Tailwind utility classes,
  * because Tailwind's JIT cannot scan dynamic strings at build time.
- * `bg-[${color}]` only produces a class when that literal is in the source,
- * which it is not for runtime palette values.
+ * `bg-[${color}]` only produces a class when that literal is in the source, which it is not for runtime palette values.
  */
 export function buildPalette(ontology: OntologyResponse | undefined, locale: Locale): OntologyPalette {
   const nodeColorById = new Map<NodeTypeId, string>()
@@ -112,8 +108,7 @@ export function buildPalette(ontology: OntologyResponse | undefined, locale: Loc
 
 /**
  * Stable colour for a type id when the descriptor did not author one.
- * Hue is derived from a string hash,
- * chroma and lightness are pinned,
+ * Hue is derived from a string hash, chroma and lightness are pinned,
  * so the palette stays within Braid's dark-mode contrast envelope.
  */
 function hashColor(id: string): string {
@@ -128,8 +123,7 @@ function hashColor(id: string): string {
 
 /**
  * Append an alpha component to an OKLCH, hex, or rgb colour string.
- * Works because CSS colour functions accept ` / <alpha>`,
- * before the closing paren, for oklch, lch, hsl, and rgb.
+ * Works because CSS colour functions accept ` / <alpha>`, before the closing paren, for oklch, lch, hsl, and rgb.
  * For hex or named colours we fall back to opacity at the consumer.
  */
 export function withAlpha(color: string, alpha: number): string {
@@ -141,7 +135,6 @@ export function withAlpha(color: string, alpha: number): string {
   if (trimmed.endsWith(')'))
     return `${trimmed.slice(0, -1)} / ${alpha})`
   // Plain hex or named, return as-is.
-  // Consumers should not rely on alpha for these,
-  // or upgrade the ontology to use oklch or rgb.
+  // Consumers should not rely on alpha for these, or upgrade the ontology to use oklch or rgb.
   return trimmed
 }

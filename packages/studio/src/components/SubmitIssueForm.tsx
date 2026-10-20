@@ -19,8 +19,8 @@ interface SubmitIssueFormProps {
   onCancel: () => void
 }
 
-// Ambiguity kinds the reviewer can tag. Labels and hints are translated at
-// render via `sources.issueForm.ambiguity.<value>`.
+// Ambiguity kinds the reviewer can tag.
+// Labels and hints are translated at render via `sources.issueForm.ambiguity.<value>`.
 const AMBIGUITY_TYPES: ClarificationAmbiguityType[] = ['gap', 'contradiction', 'ambiguous', 'assumption']
 
 /**

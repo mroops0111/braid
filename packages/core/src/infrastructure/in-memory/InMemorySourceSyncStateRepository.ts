@@ -6,8 +6,7 @@ function key(workspaceId: WorkspaceId, sourceId: SourceId): string {
 }
 
 /**
- * Default `SourceSyncStateRepository` for tests,
- * and the in-memory `composeApp()` wiring.
+ * Default `SourceSyncStateRepository` for tests, and the in-memory `composeApp()` wiring.
  */
 export class InMemorySourceSyncStateRepository implements SourceSyncStateRepository {
   private readonly store = new Map<string, SourceSyncState>()

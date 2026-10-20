@@ -3,18 +3,15 @@ import { useEffect, useMemo, useRef } from 'react'
 
 /**
  * Re-fit the ReactFlow viewport whenever the laid-out node set changes.
- * Tracks a sorted-id key,
- * so unrelated re-renders do not trigger a fit,
- * such as selection, diff state, or edge highlights.
- * The very first render is skipped,
- * because ReactFlow's own `fitView` prop handles the mount case.
+ * Tracks a sorted-id key, so unrelated re-renders do not trigger a fit.
+ * Re-renders from selection, diff state, or edge highlights are the unrelated ones it ignores.
+ * The very first render is skipped, because ReactFlow's own `fitView` prop handles the mount case.
  */
 export interface FitOnLayoutChangeOptions {
   duration?: number
   padding?: number
   /**
-   * Handed the same framing that just ran,
-   * so a caller can repeat it when the canvas changes size.
+   * Handed the same framing that just ran, so a caller can repeat it when the canvas changes size.
    */
   onFitted?: (refit: () => void) => void
 }

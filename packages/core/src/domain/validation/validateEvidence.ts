@@ -6,13 +6,14 @@ import type {
 } from '@braidhq/schema'
 
 /**
- * Framework invariant: every node must declare some evidence trail.
+ * It is a framework invariant that every node declares some evidence trail.
  * One of these must hold:
+ *
  *   - at least one `metadata.sourceReferences[]` entry,
  *   - a non-empty `metadata.missingRoles[]`, declared roles whose evidence is missing.
  *
- * The rule is role-agnostic. It never names a role,
- * it only asks for a source or an explicit list of roles not yet evidenced.
+ * The rule is role-agnostic.
+ * It never names a role, it only asks for a source or an explicit list of roles not yet evidenced.
  * Without this, the graph silently accepts wishful thinking,
  * a node claimed with no source and no explicit missing-roles list.
  *
@@ -60,8 +61,7 @@ function checkNode(node: GraphNode): ValidationIssue[] {
 }
 
 /**
- * Drift detection itself happens upstream in build-cycle skills,
- * e.g. ddd:extract or ddd:reconcile,
+ * Drift detection itself happens upstream in build-cycle skills, e.g. ddd:extract or ddd:reconcile,
  * which write structured DriftIssue entries onto the node's metadata.
  * This job is to surface those entries as `ValidationIssue`s,
  * so the proposal review pane shows them, and the apply-gate respects severity.

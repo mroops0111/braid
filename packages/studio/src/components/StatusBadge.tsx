@@ -19,8 +19,7 @@ const STATUS_STYLES: Record<string, { badge: string, dot: string }> = {
   warning: { badge: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300', dot: 'bg-amber-500' },
   info: { badge: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300', dot: 'bg-blue-500' },
   // Where a source document stands against the model.
-  // Registered here with everything else,
-  // so the board tints from one table rather than a second that would drift.
+  // Registered here with everything else, so the board tints from one table rather than a second that would drift.
   uncovered: { badge: 'bg-muted text-muted-foreground border-border', dot: 'bg-muted-foreground/40' },
   running: { badge: 'bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-300', dot: 'bg-blue-500' },
   awaitingDecision: { badge: 'bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-300', dot: 'bg-amber-500' },
@@ -33,10 +32,8 @@ const STATUS_STYLES: Record<string, { badge: string, dot: string }> = {
 const NEUTRAL = { badge: 'bg-muted text-muted-foreground border-border', dot: 'bg-muted-foreground/40' }
 
 /**
- * The tint a status carries,
- * for the places that need the colour without the badge around it.
- * Read from the one record,
- * so a dot and a badge for the same status can never come to disagree.
+ * The tint a status carries, for the places that need the colour without the badge around it.
+ * Read from the one record, so a dot and a badge for the same status can never come to disagree.
  */
 export function statusTone(status: string): string {
   return (STATUS_STYLES[status] ?? NEUTRAL).badge

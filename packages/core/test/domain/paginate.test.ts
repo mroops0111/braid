@@ -30,14 +30,14 @@ describe('paginate', () => {
   })
 
   it('returns the last items when offset is negative (Array.slice semantics)', () => {
-    // Pinned behavior: paginate delegates to Array.prototype.slice, so a
-    // negative offset counts from the end. Production routes filter to
-    // non-negative via zod, but the helper itself trusts its input.
+    // This pins behavior. `paginate` delegates to Array.prototype.slice, so a negative offset counts from the end.
+    // Production routes filter to non-negative via zod, but the helper itself trusts its input.
     expect(paginate(items, undefined, -2)).toEqual([4, 5])
   })
 
   it('treats a negative limit as a "drop last N" via Array.slice semantics', () => {
-    // Pinned behavior: end becomes (offset + limit), which is below offset,
+    // This pins behavior.
+    // The end index becomes (offset + limit), which is below offset,
     // so slice(start, negativeEnd) treats end as length plus end.
     // Production routes filter to non-negative via zod, this documents reality.
     expect(paginate(items, -3, 1)).toEqual([2, 3])

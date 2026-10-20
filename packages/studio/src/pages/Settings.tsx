@@ -32,8 +32,7 @@ function visibleTabs(viewer: { canManageServers: boolean, isAdmin: boolean }): r
   return [
     ...(viewer.canManageServers ? ['servers' as const] : []),
     ...(viewer.isAdmin ? ['users' as const] : []),
-    // Everyone's own, since a credential belongs to the person,
-    // rather than to whoever administers the server.
+    // Everyone's own, since a credential belongs to the person, rather than to whoever administers the server.
     'agent' as const,
     'appearance' as const,
     'about' as const,
@@ -42,8 +41,7 @@ function visibleTabs(viewer: { canManageServers: boolean, isAdmin: boolean }): r
 
 export function SettingsPage() {
   const { t } = useTranslation()
-  // A page served by a server speaks only to that server,
-  // so the server list is a desktop affordance.
+  // A page served by a server speaks only to that server, so the server list is a desktop affordance.
   // In a browser the same need is met by a new tab.
   const canManageServers = isDesktop()
   const { isServerAdmin: isAdmin, loading: policyLoading } = useWorkspacePolicy(null)
@@ -53,8 +51,7 @@ export function SettingsPage() {
   // rather than pinning one that a given viewer may not even see.
   // A choice that outlives the viewer's access falls back the same way.
   const tab = chosen !== null && tabs.includes(chosen) ? chosen : tabs[0]!
-  // The admin tabs hang on `/users/me`,
-  // so rendering before it lands would widen the nav under the pointer.
+  // The admin tabs hang on `/users/me`, so rendering before it lands would widen the nav under the pointer.
   if (policyLoading)
     return <div className="flex h-full flex-col" />
   return (

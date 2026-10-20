@@ -10,23 +10,18 @@ import type {
 import type { EdgeTypeDescriptor, OntologyPlugin, OntologyValidator } from '../plugin/OntologyPlugin.js'
 
 /**
- * Generic engine. Reads `EdgeTypeDescriptor.fromTypes / toTypes / cardinality`,
- * from an `OntologyPlugin` instance.
- * Rejects edges whose endpoints violate the declared topology,
- * or whose count violates the declared cardinality.
+ * Generic engine.
+ * Reads `EdgeTypeDescriptor.fromTypes / toTypes / cardinality`, from an `OntologyPlugin` instance.
+ * Rejects edges whose endpoints violate the declared topology, or whose count violates the declared cardinality.
  *
- * Complements `OntologyTypeValidator` and `OrphanEdgeValidator`,
- * the type allow-list and the endpoints-exist check.
- * Without this, the extract skill could land a reversed edge,
- * such as `aggregate contains boundedContext`.
- * Every consumer would then read the edge in the wrong direction,
- * and produce wrong results.
+ * Complements `OntologyTypeValidator` and `OrphanEdgeValidator`, the type allow-list and the endpoints-exist check.
+ * Without this, the extract skill could land a reversed edge, such as `aggregate contains boundedContext`.
+ * Every consumer would then read the edge in the wrong direction, and produce wrong results.
  *
  * Edge types not declared by the ontology are skipped here.
  * The type validator already flags them as unknown.
  *
- * Not a plugin: each ontology constructs its own instance,
- * exposed via `OntologyPlugin.validators[]`.
+ * Not a plugin. Each ontology constructs its own instance, exposed via `OntologyPlugin.validators[]`.
  */
 export class StructuralValidator implements OntologyValidator {
   private readonly edgeTypeById: ReadonlyMap<EdgeTypeId, EdgeTypeDescriptor>
@@ -80,11 +75,9 @@ export class StructuralValidator implements OntologyValidator {
   }
 
   /**
-   * Cardinality is a property of the edge **type**,
-   * evaluated by counting how many edges each node participates in.
+   * Cardinality is a property of the edge **type**, evaluated by counting how many edges each node participates in.
    * Bucket edges by type, then count source / target frequency per node.
-   * Surface the offending node, so the user sees where the duplicate lives,
-   * not just that it exists.
+   * Surface the offending node, so the user sees where the duplicate lives, not just that it exists.
    */
   private checkCardinality(edges: readonly GraphEdge[]): readonly ValidationIssue[] {
     const issues: ValidationIssue[] = []
@@ -111,8 +104,7 @@ export class StructuralValidator implements OntologyValidator {
 }
 
 // Cardinality reads as "one-to-many".
-// '1:N' means one source relates to many targets,
-// so each TARGET has at most one source.
+// '1:N' means one source relates to many targets, so each TARGET has at most one source.
 // The SOURCE side can fan out without limit.
 // Mnemonic:
 //   sourceLimit = right side  (max outgoing edges a single source can have)

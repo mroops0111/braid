@@ -32,7 +32,7 @@ describe('FsSecretStore', () => {
     const filePath = join(root, 'oauth-google', 'k.json')
     const fileStat = await stat(filePath)
     const dirStat = await stat(join(root, 'oauth-google'))
-    // Mask off the file-type bits; compare the permission bits only.
+    // Mask off the file-type bits, and compare the permission bits only.
     expect(fileStat.mode & 0o777).toBe(0o600)
     expect(dirStat.mode & 0o777).toBe(0o700)
   })
@@ -41,9 +41,8 @@ describe('FsSecretStore', () => {
     await store.write('oauth-google', '../../../etc/passwd', { value: 'pwned' })
     const out = await store.read('oauth-google', '../../../etc/passwd')
     expect(out).toEqual({ value: 'pwned' })
-    // The file lives under root (sanitised), not at /etc/passwd. `.` is
-    // allowed in keys (so config files can be named `client.id.json`), but
-    // every `/` is rewritten to `_`.
+    // The file lives under root (sanitised), not at /etc/passwd.
+    // `.` is allowed in keys (so config files can be named `client.id.json`), but every `/` is rewritten to `_`.
     await expect(stat(join(root, 'oauth-google', '.._.._.._etc_passwd.json'))).resolves.toBeDefined()
   })
 

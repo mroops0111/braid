@@ -39,8 +39,7 @@ function WorkspaceEmbeddingBanner({ workspaceId }: { workspaceId: string }) {
   const rebuild = useMutation({
     mutationFn: () => api.rebuildEmbeddings(workspaceId),
     onSuccess: () => {
-      // The call answers with coverage as it stood,
-      // so the banner would keep the old count until progress lands.
+      // The call answers with coverage as it stood, so the banner would keep the old count until progress lands.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.embeddingCoverage(workspaceId),
       })

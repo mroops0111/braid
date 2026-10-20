@@ -14,8 +14,7 @@ describe('maskCredential', () => {
     expect(maskCredential(credentialOf(REAL_LENGTH))).toBe('sk-ant-oat01…Ss8wAA')
   })
 
-  // The rest is what an onlooker would need,
-  // so the visible part has to stay a small fraction of the whole.
+  // The rest is what an onlooker would need, so the visible part has to stay a small fraction of the whole.
   it('hides the overwhelming majority of it', () => {
     const credential = credentialOf(REAL_LENGTH)
     const masked = maskCredential(credential)
@@ -27,8 +26,7 @@ describe('maskCredential', () => {
     expect(maskCredential(credential)).not.toContain('SECRETMIDDLE')
   })
 
-  // Both ends of a short value would be most of it,
-  // so a credential too short to split falls back to a tail alone.
+  // Both ends of a short value would be most of it, so a credential too short to split falls back to a tail alone.
   it('shows only a tail for a credential too short to split', () => {
     expect(maskCredential('short-one-1234')).toBe('…1234')
   })

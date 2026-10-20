@@ -6,8 +6,7 @@ interface ListRowProps {
   onClick: () => void
   /**
    * `sidebar`: dense rounded row with sidebar-* tokens, for navigation.
-   * `content`: full-width bordered row with accent hover,
-   * for primary content lists like Skills or Proposals.
+   * `content`: full-width bordered row with accent hover, for primary content lists like Skills or Proposals.
    */
   variant?: 'sidebar' | 'content'
   className?: string
@@ -24,19 +23,16 @@ interface ListRowProps {
   /**
    * A control at the row's trailing edge, beside the click target not inside it,
    * since a button cannot be a descendant of a button.
-   * The row reserves its width whether or not it is showing,
-   * so a title does not reflow when a pointer arrives.
+   * The row reserves its width whether or not it is showing, so a title does not reflow when a pointer arrives.
    */
   trailing?: ReactNode
   children: ReactNode
 }
 
 /**
- * Standard list-row pattern,
- * with a 3px purple active bar flush against the left edge.
+ * Standard list-row pattern, with a 3px purple active bar flush against the left edge.
  * Used by every selectable list in Studio,
- * so the visual language stays consistent,
- * across hover transition, active bg, and bar position.
+ * so the visual language stays consistent, across hover transition, active bg, and bar position.
  */
 export function ListRow({ active, onClick, variant = 'content', className, title, stripeClassName, stripeDim, trailing, children }: ListRowProps) {
   const tokens = variant === 'sidebar'
@@ -89,13 +85,11 @@ export function ListRow({ active, onClick, variant = 'content', className, title
  * A row's title, clamped to two lines.
  *
  * The clamp sits on a block child rather than on the flex item itself.
- * A flex item's display is blockified,
- * so `-webkit-box` silently becomes `flow-root`, the clamp stops working,
+ * A flex item's display is blockified, so `-webkit-box` silently becomes `flow-root`, the clamp stops working,
  * and the box still cuts the last line in half.
  * Every list here puts its rows in a flex container, so every one had it.
  *
- * Two lines rather than each list choosing,
- * because rows of wildly different heights stop three queues reading as one.
+ * Two lines rather than each list choosing, because rows of wildly different heights stop three queues reading as one.
  */
 export function ListRowTitle({ className, children }: { className?: string, children: ReactNode }) {
   return (

@@ -26,11 +26,12 @@ const PeekTargetContext = createContext<Reference | null>(null)
 /**
  * Reads a reference in place, beside whatever surface the reader is on.
  *
- * Clicking a tag mid-review should not cost the reader their scroll position,
- * their selected candidate, or the proposal they had open. So the click peeks,
- * and leaving for the target's own surface is a separate, explicit button.
+ * Clicking a tag mid-review should not cost the reader their scroll position, their selected candidate,
+ * or the proposal they had open.
+ * So the click peeks, and leaving for the target's own surface is a separate, explicit button.
  *
- * Holds the target only. The panel renders through {@link ReferencePeekAside},
+ * Holds the target only.
+ * The panel renders through {@link ReferencePeekAside},
  * which the shell places as a flex sibling, matching the graph's detail panel.
  * A modal sheet would cover the very text the reader clicked from.
  */
@@ -56,8 +57,7 @@ export function ReferencePeekProvider({ resetKey, children }: { resetKey: string
 
 /**
  * Lets a surface that already shows one kind's detail claim that kind,
- * so a click swaps the panel it has,
- * rather than opening a second, identical one beside it.
+ * so a click swaps the panel it has, rather than opening a second, identical one beside it.
  * Every other kind falls through to the app-level peek.
  */
 export function ReferencePeekOverride({ kind, onOpen, children }: {
@@ -79,8 +79,7 @@ export function ReferencePeekOverride({ kind, onOpen, children }: {
 }
 
 /**
- * The peek panel itself, an in-flow aside that narrows the page,
- * rather than covering it.
+ * The peek panel itself, an in-flow aside that narrows the page, rather than covering it.
  * Renders nothing while no reference is open.
  */
 export function ReferencePeekAside() {

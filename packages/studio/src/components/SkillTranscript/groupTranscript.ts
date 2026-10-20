@@ -13,24 +13,18 @@ export type TranscriptItem =
   | { kind: 'tool-group', calls: PairedCall[], key: string }
 
 /**
- * Walks the raw event stream,
- * and merges consecutive tool-call and tool-result events into one item.
+ * Walks the raw event stream, and merges consecutive tool-call and tool-result events into one item.
  * Pairing is by toolCallId.
- * A tool-result whose id matches no preceding call,
- * becomes a synthetic "(unknown tool)" row.
+ * A tool-result whose id matches no preceding call, becomes a synthetic "(unknown tool)" row.
  *
  * Any non-tool event passes through as its own item, breaking the group.
- * Those are message, thinking, usage, rate-limit, started, completed,
- * error, and artifact-written.
+ * Those are message, thinking, usage, rate-limit, started, completed, error, and artifact-written.
  */
 export function groupTranscript(events: readonly SkillEvent[]): TranscriptItem[] {
   const items: TranscriptItem[] = []
-  // A render call produces a block, and the block arrives out of band,
-  // between the call and its result.
-  // That breaks the group, so a result would land alone,
-  // and read as a tool nobody called.
-  // Calls stay reachable across the break instead,
-  // and the result joins the call it belongs to.
+  // A render call produces a block, and the block arrives out of band, between the call and its result.
+  // That breaks the group, so a result would land alone, and read as a tool nobody called.
+  // Calls stay reachable across the break instead, and the result joins the call it belongs to.
   const openCalls = new Map<string, PairedCall>()
   let i = 0
   while (i < events.length) {

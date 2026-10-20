@@ -16,8 +16,7 @@ export type AnswerView = AudienceId | typeof TRANSCRIPT_VIEW
 
 /**
  * The reader's stored view, resolved against what this ontology declares.
- * A stored id an ontology no longer has falls back,
- * rather than showing an empty answer.
+ * A stored id an ontology no longer has falls back, rather than showing an empty answer.
  *
  * A reading habit rather than a workspace policy, so it lives with the reader.
  */

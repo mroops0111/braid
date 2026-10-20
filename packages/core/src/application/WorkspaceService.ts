@@ -25,10 +25,8 @@ export class WorkspaceService {
   }
 
   /**
-   * Throw if the workspace's sources don't cover every role,
-   * that the registered ontology declares as required.
-   * Route handlers that mutate `sources` call this before `save()`,
-   * on add, patch, or delete.
+   * Throw if the workspace's sources don't cover every role, that the registered ontology declares as required.
+   * Route handlers that mutate `sources` call this before `save()`, on add, patch, or delete.
    * `save()` itself doesn't enforce the rule,
    * so discovery can re-load pre-existing workspaces whose manifests pre-date it.
    */

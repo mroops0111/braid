@@ -33,8 +33,7 @@ import { computeSourceDiff } from './computeSourceDiff.js'
 
 /**
  * The autonomous source-sync reactor's service-account identity.
- * Every run it dispatches is attributed to this account,
- * and the server seeds a matching user record at boot.
+ * Every run it dispatches is attributed to this account, and the server seeds a matching user record at boot.
  */
 export const REACTOR_USER_ID = UserId.parse('reactor')
 
@@ -56,17 +55,16 @@ export interface ReactorServiceDeps {
   readonly unitLister: UnitLister
   /**
    * Yields the caller token the reactor's autonomous skill runs act under.
-   * The reactor has no human caller, so it runs as the `reactor` service account,
-   * and its proposals are owned by it. Absent means run tokenless,
-   * which falls back to the deployment's default principal.
+   * The reactor has no human caller, so it runs as the `reactor` service account, and its proposals are owned by it.
+   * Absent means run tokenless, which falls back to the deployment's default principal.
    */
   readonly reactorToken?: () => Promise<string | undefined>
   readonly digest: SourceUnitDigest
   readonly reactorCycleRepository: ReactorCycleRepository
   readonly clock: Clock
   /**
-   * Required. Two `source.synced` events for one workspace arriving at once,
-   * must not both bypass the throttle.
+   * Required.
+   * Two `source.synced` events for one workspace arriving at once, must not both bypass the throttle.
    * The lock serialises cycle execution per workspace.
    * Sharing the HITLService or HistoryService lock instance is fine,
    * the reactor holds its own critical section and never blocks writes.
@@ -81,8 +79,7 @@ const DEFAULT_MAX_RUNS_PER_HOUR = 5
 
 /**
  * Rolling 1h sliding-window counter of reactor dispatches.
- * Wraps the "is this workspace over its cap right now" question,
- * and the clock-based pruning that goes with it,
+ * Wraps the "is this workspace over its cap right now" question, and the clock-based pruning that goes with it,
  * so the service code does not mix a predicate with a mutating side effect.
  */
 class ThrottleWindow {
@@ -120,8 +117,7 @@ class ThrottleWindow {
 
 /**
  * Per-cycle context the orchestrator threads through its substeps.
- * The `cycle` field is the authoritative state,
- * each step reassigns it to a new immutable snapshot,
+ * The `cycle` field is the authoritative state, each step reassigns it to a new immutable snapshot,
  * and `persistAndEmit()` saves the latest so the Activity page stays live.
  */
 interface CycleContext {
@@ -134,19 +130,18 @@ interface CycleContext {
 }
 
 /**
- * Reactor implementation.
  * Listens to `source.synced` on the `WorkspaceEventBus`, and for unit-bearing sources,
  * runs the active ontology's per-unit skill against the diff,
  * between the current units on disk and the recorded `SourceUnitObservation` ledger.
- * After all per-unit dispatches settle,
- * runs one ontology checkpoint when at least one per-unit succeeded.
+ * After all per-unit dispatches settle, runs one ontology checkpoint when at least one per-unit succeeded.
  *
- * Two outputs per cycle. A `ReactorCycle` record persisted via `ReactorCycleRepository`,
- * queryable via REST and the Studio Activity page.
+ * Two outputs per cycle.
+ * A `ReactorCycle` record persisted via `ReactorCycleRepository`, queryable via REST and the Studio Activity page.
  * A stream of SSE events on the workspace bus the page subscribes to for live updates.
  * The two surfaces agree by construction, every event corresponds to a save.
  *
  * Locked decisions.
+ *
  * - Per-unit dispatch, not batched, and sequential with no concurrency.
  * - Unit-bearing roles only, other roles fall through.
  * - First-provision does NOT fire the reactor,
@@ -221,8 +216,8 @@ export class ReactorService {
       return
     const changedPaths = await this.changedUnitPaths(resolved)
     if (changedPaths.length === 0) {
-      // No-op cycle. Still persist and emit,
-      // so the Activity page records every delivered event consistently,
+      // No-op cycle.
+      // Still persist and emit, so the Activity page records every delivered event consistently,
       // and the operator can see the reactor ran but had nothing to do.
       await this.recordCompleted(resolved, 0, false)
       return
@@ -270,8 +265,7 @@ export class ReactorService {
   /**
    * Sequentially dispatch the per-unit skill against each queued unit,
    * then dispatch the checkpoint skill iff at least one per-unit succeeded.
-   * A per-unit failure does NOT abort the loop,
-   * the failed unit stays out of the ledger so the next sync retries it.
+   * A per-unit failure does NOT abort the loop, the failed unit stays out of the ledger so the next sync retries it.
    */
   private async dispatchUnitsThenCheckpoint(context: CycleContext): Promise<boolean> {
     let anySucceeded = false
@@ -282,11 +276,9 @@ export class ReactorService {
     const checkpointSkillId = context.batchBinding.checkpoint?.skillId
     if (anySucceeded && checkpointSkillId)
       return this.dispatchCheckpoint(context, checkpointSkillId)
-    // No per-unit succeeded, or no checkpoint configured,
-    // so there is no checkpoint run to report.
+    // No per-unit succeeded, or no checkpoint configured, so there is no checkpoint run to report.
     // The terminal `reactor.completed` event carries `checkpointRan: false`.
-    // No separate `checkpoint.completed` event is emitted,
-    // keeping persisted state and event stream in sync.
+    // No separate `checkpoint.completed` event is emitted, keeping persisted state and event stream in sync.
     return false
   }
 
@@ -322,8 +314,7 @@ export class ReactorService {
     }
     // The skill ran cleanly.
     // Recording the observation and persisting success are best-effort.
-    // If either fails, the unit is still semantically successful,
-    // its side effects already happened.
+    // If either fails, the unit is still semantically successful, its side effects already happened.
     // Marking it a failure here would cause a duplicate dispatch next sync,
     // since the ledger may already hold the new sha, silently re-running the skill.
     try {
@@ -536,8 +527,7 @@ function isUnitBearingSource(source: SourceDescriptor, ontology: OntologyPlugin)
 /**
  * Compute the per-unit skill args for a path.
  * The ontology's `argsFor` is typed against `BatchUnit`, BatchService's domain,
- * but it only reads `name` and `scopeHint`,
- * so we honour that contract by passing a minimal synthetic.
+ * but it only reads `name` and `scopeHint`, so we honour that contract by passing a minimal synthetic.
  * Keeping the cast in one helper leaves the rest of the reactor free of casts.
  */
 function argsForPath(binding: OntologyPerUnitBinding, path: string): string {

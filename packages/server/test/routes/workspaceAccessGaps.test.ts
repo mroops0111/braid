@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { asUser, buildMultiUserApp } from '../helpers/multiUser.js'
 
-// Hono runs matched handlers in registration order,
-// so a route on the bare `/workspaces` router answers first,
+// Hono runs matched handlers in registration order, so a route on the bare `/workspaces` router answers first,
 // ahead of the scoped sub-app that carries the membership gate.
 // Both paths below look scoped, and each needs that gate applied directly.
 

@@ -60,15 +60,13 @@ export interface SkillsRouterDeps {
   readonly sourceUnitObservationService: SourceUnitObservationService
   /**
    * Backfills a run's terminal exit state.
-   * A run can finish after `skillRunner.start` returns,
-   * but before the hook subscribes, missing the terminal event.
+   * A run can finish after `skillRunner.start` returns, but before the hook subscribes, missing the terminal event.
    * Without it the hook only listens forward, so that race leaks silently.
    */
   readonly runRepository: RunRepository
   /**
    * Resolves the active ontology for the workspace,
-   * so the route reads its `batch.perUnit.skillId`,
-   * instead of hard-coding the extract skill.
+   * so the route reads its `batch.perUnit.skillId`, instead of hard-coding the extract skill.
    */
   readonly pluginRegistry: PluginRegistry
   /**
@@ -137,10 +135,8 @@ const runSkillRoute = createRoute({
 export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
   const router = new OpenAPIHono()
 
-  // skill.run is the only capability needing a per-request resource,
-  // the skill manifest.
-  // The builder fetches workspace and manifest once,
-  // then hands the result to the policy check.
+  // skill.run is the only capability needing a per-request resource, the skill manifest.
+  // The builder fetches workspace and manifest once, then hands the result to the policy check.
   router.use('/:skillId/run', requirePermission('skill.run', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const skillId = SkillIdSchema.parse(context.req.param('skillId'))
@@ -168,13 +164,11 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const { skillId } = context.req.valid('param')
     const { args, resumeSessionId, sourceUnit, outputForm } = context.req.valid('json')
     const callerToken = extractBearerToken(context)
-    // A conversation lent to you is read-only,
-    // and the recipient learns its session id the moment they read it,
+    // A conversation lent to you is read-only, and the recipient learns its session id the moment they read it,
     // so without this the grant would hand over a write.
     if (resumeSessionId)
       await requireOwnedSession(context, workspace, resumeSessionId, deps.runRepository)
-    // Attribute the run to whoever asked for it,
-    // since one workspace's run history is shared by every member.
+    // Attribute the run to whoever asked for it, since one workspace's run history is shared by every member.
     const options = {
       startedBy: getUserId(context),
       ...(resumeSessionId ? { resumeSessionId } : {}),
@@ -184,8 +178,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
     const perUnitSkillId = resolvePerUnitSkillId(deps.pluginRegistry, workspace)
 
     if (sourceUnit) {
-      // The sourceUnit applies only to the ontology's per-unit step,
-      // so reject it for any other skill.
+      // The sourceUnit applies only to the ontology's per-unit step, so reject it for any other skill.
       // Otherwise the run-skill route advertises support uniformly,
       // then silently drops it for every skill except extract.
       if (!perUnitSkillId || skillId !== perUnitSkillId) {
@@ -196,8 +189,7 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
         )
       }
       // Reject a sourceUnit whose sourceId is not a unit-bearing source here.
-      // Recording against a ghost sourceId would pollute the ledger,
-      // and confuse the Reactor and BatchService diff.
+      // Recording against a ghost sourceId would pollute the ledger, and confuse the Reactor and BatchService diff.
       const ontology = deps.pluginRegistry.findOntology(workspace.productManifest.ontologyId)
       const unitRoles = ontology ? unitBearingRoleIds(ontology) : []
       const known = workspace.sources.find(s => s.id === sourceUnit.sourceId && unitRoles.includes(s.role))
@@ -207,18 +199,15 @@ export function createSkillsRouter(deps: SkillsRouterDeps): OpenAPIHono {
 
     // Before the agent opens a single file, not after.
     // A refresh landing mid-run swaps content the agent already reasoned about.
-    // Bounded,
-    // because this call holds the request open and git has no timeout of its own.
+    // Bounded, because this call holds the request open and git has no timeout of its own.
     // Past the bound the run starts against the existing mirror,
     // which is what the best-effort contract promises anyway.
     await deps.sourceSyncService.ensureWorkspaceFresh(workspace, { deadlineMs: PRE_RUN_REFRESH_DEADLINE_MS })
 
     const runId = await deps.skillRunner.start(workspace, skillId, args, options)
 
-    // The observation hook runs in the background,
-    // so the route still returns 202 promptly.
-    // Any failure (skill error, cancel, repository write) is logged,
-    // but does not bubble up to the client.
+    // The observation hook runs in the background, so the route still returns 202 promptly.
+    // Any failure (skill error, cancel, repository write) is logged, but does not bubble up to the client.
     if (sourceUnit && perUnitSkillId && skillId === perUnitSkillId) {
       void recordObservationOnSuccess({
         runner: deps.skillRunner,
@@ -240,8 +229,7 @@ const recordLogger = createLogger('skills.recordObservation')
 
 // Stop waiting after this many ms, even if no terminal event arrives.
 // Real ddd:extract runs settle in seconds to minutes.
-// This backstops orphan subscriptions on crashed runners,
-// or upstream queues that quietly drop events.
+// This backstops orphan subscriptions on crashed runners, or upstream queues that quietly drop events.
 const OBSERVATION_TIMEOUT_MS = 60 * 60 * 1000
 
 interface RecordObservationParams {
@@ -255,8 +243,7 @@ interface RecordObservationParams {
 
 // Subscribe to a run and wait for it to terminate.
 // Record a SourceUnitObservation only if it exits cleanly (code 0).
-// On cancellation, non-zero exit, error, or timeout,
-// the previously recorded state is left untouched.
+// On cancellation, non-zero exit, error, or timeout, the previously recorded state is left untouched.
 //
 // Two race-safety measures matter here.
 // First, we subscribe before checking `isActive`.
@@ -322,8 +309,7 @@ async function waitForTerminalOutcome(
     }
 
     // Backfill for an already-finished run.
-    // Its subscription never receives a terminal event,
-    // because the runner clears subscribers when drain exits.
+    // Its subscription never receives a terminal event, because the runner clears subscribers when drain exits.
     // Read the persisted RunRecord instead.
     if (!runner.isActive(runId)) {
       ;(async () => {
@@ -342,8 +328,7 @@ async function waitForTerminalOutcome(
     }
 
     // Timeout backstop. .unref() lets Node exit while the timer pends.
-    // Observation recording is best-effort,
-    // not a reason to hold the process open.
+    // Observation recording is best-effort, not a reason to hold the process open.
     timeout = setTimeout(() => settle('failure'), OBSERVATION_TIMEOUT_MS)
     timeout.unref?.()
   })

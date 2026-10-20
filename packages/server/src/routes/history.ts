@@ -8,8 +8,7 @@ import { getUserId } from '../middleware/auth.js'
 import { requirePermission } from '../middleware/workspaceAccess.js'
 import { getWorkspaceId } from '../middleware/workspaceId.js'
 
-// `userId` accepted for backwards compat,
-// the authoritative value comes from the request context,
+// `userId` accepted for backwards compat, the authoritative value comes from the request context,
 // set by the auth middleware.
 const RestoreBody = z.object({
   userId: UserId.optional(),
@@ -38,8 +37,7 @@ export interface HistoryRouterDeps {
 export function createHistoryRouter(deps: HistoryRouterDeps): Hono {
   const router = new Hono()
   // Restore is destructive, Owner only.
-  // Tag CRUD is workspace metadata management,
-  // Owner only as well to keep ACL coherent.
+  // Tag CRUD is workspace metadata management, Owner only as well to keep ACL coherent.
   router.use('/:sha/restore', requirePermission('history.write'))
   router.use('/tags', requirePermission('history.write'))
   router.use('/tags/*', requirePermission('history.write'))

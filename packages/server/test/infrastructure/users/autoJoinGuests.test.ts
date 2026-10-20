@@ -47,8 +47,7 @@ describe('autoJoinOpenWorkspaces', () => {
     expect(registry.added.map(entry => entry.rootPath)).toEqual(['/open', '/also-open'])
   })
 
-  // Signing in must not hand out write access,
-  // so the automatic path has one role and no way to ask for another.
+  // Signing in must not hand out write access, so the automatic path has one role and no way to ask for another.
   it('joins as guest even where the workspace has no other members', async () => {
     const registry = fakeRegistry()
     await autoJoinOpenWorkspaces(deps(registry), ada, [workspace('/open', 'guest')])
@@ -93,8 +92,7 @@ describe('autoJoinExistingUsers', () => {
     expect(registry.added.map(entry => entry.member.userId)).toEqual(['user-ada', 'user-bo'])
   })
 
-  // Closing a workspace is the common edit,
-  // and it must never read as an instruction to add everybody.
+  // Closing a workspace is the common edit, and it must never read as an instruction to add everybody.
   it('adds nobody when the workspace admits nobody', async () => {
     const registry = fakeRegistry()
     await autoJoinExistingUsers(deps(registry), '/open' as AbsolutePath, undefined, users)

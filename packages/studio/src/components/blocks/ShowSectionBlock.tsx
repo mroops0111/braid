@@ -11,10 +11,8 @@ const HEADING: Record<SectionLevel, string> = {
  * Where one part of a document starts.
  *
  * A rule above it at the top level, and none deeper,
- * so a reader scanning for the next part finds it,
- * without every heading shouting equally.
- * The nodes it covers are not drawn here,
- * because the block after it usually draws them properly,
+ * so a reader scanning for the next part finds it, without every heading shouting equally.
+ * The nodes it covers are not drawn here, because the block after it usually draws them properly,
  * and a list of ids under a heading is machinery nobody asked to see.
  */
 export function ShowSectionBlock({ block }: { block: ShowSection }) {

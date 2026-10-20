@@ -5,8 +5,9 @@ interface RawEvent { readonly type: string, readonly [key: string]: unknown }
 interface RawContentPart { readonly type?: string, readonly [key: string]: unknown }
 
 /**
- * Map one `claude --output-format stream-json` line into zero or more
- * SkillEvents. Claude emits these envelope shapes:
+ * Map one `claude --output-format stream-json` line into zero or more SkillEvents.
+ * Claude emits these envelope shapes:
+ *
  *   - `system` subtype `init`: session metadata, only `session_id` is kept.
  *   - `assistant`: content parts, `text`, `tool_use`, and `thinking` surface.
  *   - `user`: echoes a `tool_result`, only its `is_error` flag surfaces.
@@ -14,8 +15,7 @@ interface RawContentPart { readonly type?: string, readonly [key: string]: unkno
  *   - `rate_limit_event`: surfaced only when the run is actually throttled.
  *   - `stream_event`: partial text, live only, never kept.
  *
- * Legacy flat shapes are kept for tests and older tools,
- * `text`, `tool_use`, `artifact-written`, and `error`.
+ * Legacy flat shapes are kept for tests and older tools, `text`, `tool_use`, `artifact-written`, and `error`.
  */
 export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   const trimmed = line.trim()
@@ -105,10 +105,8 @@ export function parseClaudeLine(line: string, now: string): SkillEvent[] {
   if (raw.type === 'result') {
     const isError = raw.is_error === true
     const text = typeof raw.result === 'string' ? raw.result : ''
-    // On success `result` restates the last assistant message verbatim,
-    // for callers that want only the outcome.
-    // The assistant envelope already emitted it,
-    // so re-emitting would show the answer twice.
+    // On success `result` restates the last assistant message verbatim, for callers that want only the outcome.
+    // The assistant envelope already emitted it, so re-emitting would show the answer twice.
     // A failure carries its text nowhere else, so it still speaks.
     if (isError)
       out.push(SkillEventSchema.parse({ type: 'error', message: text || 'skill run failed', at: now }))

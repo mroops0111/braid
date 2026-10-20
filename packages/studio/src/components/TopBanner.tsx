@@ -22,20 +22,16 @@ interface TopBannerProps {
 /**
  * Single source of truth for the top-of-app status banner.
  * The Reactor, Batch, and InFlightRun banners all funnel through this,
- * so the three never disagree on height, padding, or typography,
- * when they stack during a busy session.
+ * so the three never disagree on height, padding, or typography, when they stack during a busy session.
  */
 export function TopBanner({ tone, label, detail, icon: Icon, spin = true, actions }: TopBannerProps): ReactNode {
   const ResolvedIcon = Icon ?? Loader2
   return (
     <div
       className={cn(
-        // Fixed height (h-9 = 36px),
-        // so the Reactor, Batch, and Run banners stack identically,
-        // even when one carries an `h-6` Button in `actions`,
-        // and another a plain text link.
-        // py is removed in favour of an explicit height,
-        // so the container never shrinks.
+        // Fixed height (h-9 = 36px), so the Reactor, Batch, and Run banners stack identically,
+        // even when one carries an `h-6` Button in `actions`, and another a plain text link.
+        // py is removed in favour of an explicit height, so the container never shrinks.
         'flex h-9 items-center gap-3 border-b px-4 text-xs',
         tone === 'reactor' && 'border-emerald-500/30 bg-emerald-500/5',
         tone === 'run' && 'border-primary/30 bg-primary/5',

@@ -34,8 +34,7 @@ const BLOCK_FORMAT = ViewArtifactFormat.parse('blocks')
 /**
  * Where the material lands, which is beside the views rather than among them.
  *
- * This is what a form reads to write a page,
- * so a reader offered it among the documents gets the machinery instead.
+ * This is what a form reads to write a page, so a reader offered it among the documents gets the machinery instead.
  */
 const MATERIAL_DIR = 'material'
 
@@ -46,16 +45,13 @@ const Config = z.object({
 /**
  * The material a document is written from, and nothing about the writing.
  *
- * This half is a function,
- * so what a document covers, which term sits under which,
+ * This half is a function, so what a document covers, which term sits under which,
  * and what the graph is still unsure of come out the same every run.
  * They are facts about the graph rather than choices about wording.
  *
  * The other half is a form, and it is deliberately given no template.
- * A generator that dictates the shape of an explanation,
- * gets a document that obeys the shape and teaches nobody.
- * What a form is handed is the material,
- * in the order the ontology says the graph nests,
+ * A generator that dictates the shape of an explanation, gets a document that obeys the shape and teaches nobody.
+ * What a form is handed is the material, in the order the ontology says the graph nests,
  * and what it owes back is a page.
  */
 export const docViewGeneratorPlugin: ViewGeneratorPlugin = defineViewGeneratorPlugin({
@@ -130,8 +126,7 @@ export const docViewGeneratorPlugin: ViewGeneratorPlugin = defineViewGeneratorPl
       subject: config.subject,
     })
     // A braid error rather than a plain one,
-    // so a route serving this answers a reader with what went wrong,
-    // rather than with a failure.
+    // so a route serving this answers a reader with what went wrong, rather than with a failure.
     if (material === undefined)
       throw new NotFoundError(`Node "${config.subject}" is not one this workspace holds`)
 

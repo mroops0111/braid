@@ -14,15 +14,13 @@ export interface AuthContext {
 
 /**
  * How a deployment resolves identity.
- * The one axis that separates a trusted local install,
- * from an authenticated remote server.
+ * The one axis that separates a trusted local install, from an authenticated remote server.
  *
  * Two separate axes, not one nullable field.
- * `defaultPrincipal` is the identity axis, the implicit user for an
- * unauthenticated request, and the owner a workspace falls back to,
- * or null when there is no implicit user.
- * `requiresAuth` is the policy axis, whether a caller must present a valid
- * Bearer token. The middleware reads this, never the principal's null-ness.
+ * `defaultPrincipal` is the identity axis, the implicit user for an unauthenticated request,
+ * and the owner a workspace falls back to, or null when there is no implicit user.
+ * `requiresAuth` is the policy axis, whether a caller must present a valid Bearer token.
+ * The middleware reads this, never the principal's null-ness.
  *
  * Stateless behaviour behind an interface, so a const object per mode,
  * the idiomatic strategy form when there is no constructor dependency.
@@ -30,13 +28,13 @@ export interface AuthContext {
 export interface AuthMode {
   readonly defaultPrincipal: UserId | null
   readonly requiresAuth: boolean
-  // Seed the host state this mode needs, called once at boot.
+  /** Seed the host state this mode needs, called once at boot. */
   provision: (context: AuthContext) => Promise<void>
 }
 
 /**
- * A local desktop or sidecar. One implicit user owns everything,
- * so provision seeds that `local-user` admin account, idempotently.
+ * A local desktop or sidecar.
+ * One implicit user owns everything, so provision seeds that `local-user` admin account, idempotently.
  */
 export const localTrust: AuthMode = {
   defaultPrincipal: LOCAL_USER_ID,
@@ -54,8 +52,8 @@ export const localTrust: AuthMode = {
 }
 
 /**
- * A remote server. Real users authenticate against an allowlist,
- * so provision back-fills `approvedEmails` from the roster, idempotently.
+ * A remote server.
+ * Real users authenticate against an allowlist, so provision back-fills `approvedEmails` from the roster, idempotently.
  */
 export const authenticated: AuthMode = {
   defaultPrincipal: null,

@@ -35,8 +35,10 @@ export class Proposal {
   get reviewedAt(): Timestamp | undefined { return this.data.reviewedAt }
   get sourceUnits(): readonly SourceUnit[] | undefined { return this.data.sourceUnits }
 
-  // Returns a new Proposal in 'applied' state. Caller must persist the new instance and run the operations,
-  // we keep the entity pure with no side effects.
+  /**
+   * Returns a new Proposal in 'applied' state.
+   * Caller must persist the new instance and run the operations, we keep the entity pure with no side effects.
+   */
   markApplied(userId: UserId, reviewedAt: Timestamp): Proposal {
     this.requireStatus('pending')
     return new Proposal({

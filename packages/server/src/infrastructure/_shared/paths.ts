@@ -37,10 +37,8 @@ export function graphJsonPath(workspaceRoot: AbsolutePath): string {
 /**
  * The vector index.
  *
- * Under `.braid/` with the other derived state,
- * which the workspace gitignore already covers.
- * Putting it in `artifacts/` would have needed a new ignore rule,
- * that every existing workspace was already missing.
+ * Under `.braid/` with the other derived state, which the workspace gitignore already covers.
+ * Putting it in `artifacts/` would have needed a new ignore rule, that every existing workspace was already missing.
  */
 export function embeddingsPath(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid', 'embeddings.jsonl')
@@ -59,10 +57,8 @@ export function sourceUnitObservationFilePath(
   sourceId: string,
   relativePath: string,
 ): string {
-  // Drop the trailing slash from folder units,
-  // so the file name doesn't end in `/.json`.
-  // In the unit name,
-  // replace path separators with `__`, so a nested unit maps to one file.
+  // Drop the trailing slash from folder units, so the file name doesn't end in `/.json`.
+  // In the unit name, replace path separators with `__`, so a nested unit maps to one file.
   const trimmed = relativePath.endsWith('/') ? relativePath.slice(0, -1) : relativePath
   const flattened = trimmed.replace(/\//g, '__')
   return join(sourceUnitObservationDir(workspaceRoot), sourceId, `${flattened}.json`)
@@ -124,10 +120,8 @@ export function runSessionSharesPath(workspaceRoot: AbsolutePath): string {
 }
 
 /**
- * claude stores conversation memory keyed by cwd,
- * so resume must spawn from the same dir as the first turn.
- * Keeping it in the workspace, not /tmp, stays derivable from runId,
- * and survives a server restart.
+ * claude stores conversation memory keyed by cwd, so resume must spawn from the same dir as the first turn.
+ * Keeping it in the workspace, not /tmp, stays derivable from runId, and survives a server restart.
  */
 export function sessionsDir(workspaceRoot: AbsolutePath): string {
   return join(workspaceRoot, '.braid-sessions')

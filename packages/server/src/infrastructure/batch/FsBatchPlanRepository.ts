@@ -6,10 +6,10 @@ import { BatchPlan as BatchPlanData } from '@braidhq/schema'
 import { z } from 'zod'
 import { batchPlanPath, workspaceArtifactsDir } from '../_shared/paths.js'
 
-// On-disk envelope version. Bumped only when the plan payload shape changes.
+/** On-disk envelope version. Bumped only when the plan payload shape changes. */
 export const BATCH_PLAN_VERSION = 2
 
-// Envelope only. The plan itself is validated by its schema below.
+/** Envelope only. The plan itself is validated by its schema below. */
 export const BatchPlanFile = z.object({
   version: z.number().int(),
   plan: z.unknown(),

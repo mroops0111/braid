@@ -11,8 +11,7 @@ import { composeFsApp } from '../../src/composeFsApp.js'
 
 /**
  * Serving the UI from the API process is what keeps a deployment on one origin.
- * These cover the two ways that can go wrong,
- * a static route shadowing an API prefix,
+ * These cover the two ways that can go wrong, a static route shadowing an API prefix,
  * and the UI silently not being served at all.
  */
 describe('serving Studio from the server', () => {
@@ -193,8 +192,7 @@ describe('public and loopback api urls', () => {
       .toBe('https://braid.internal/auth/google/callback')
   })
 
-  // Google sends the user's browser here,
-  // so a loopback value lands them on their own machine.
+  // Google sends the user's browser here, so a loopback value lands them on their own machine.
   it('sends the browser back to the public url after signing in', async () => {
     process.env.BRAID_GOOGLE_CLIENT_ID = 'id'
     process.env.BRAID_GOOGLE_CLIENT_SECRET = 'secret'
@@ -230,8 +228,7 @@ describe('bundled skill assets', () => {
 })
 
 /**
- * The library default trusts every caller,
- * which is right for a laptop and catastrophic on a shared host.
+ * The library default trusts every caller, which is right for a laptop and catastrophic on a shared host.
  * A Studio origin outside loopback says this deployment is reachable by other people.
  */
 describe('local trust on a reachable deployment', () => {

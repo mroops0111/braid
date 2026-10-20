@@ -19,8 +19,7 @@ const ListQuery = z.object({
 })
 
 // Body `userId` is a back-compat shim.
-// It serves API consumers still on neither the `X-Braid-User` header,
-// nor the Bearer-token flow.
+// It serves API consumers still on neither the `X-Braid-User` header, nor the Bearer-token flow.
 // When present it overrides the middleware-derived id.
 // When omitted the handler falls back to `getUserId(c)`.
 // Studio sends it via header only.
@@ -38,8 +37,7 @@ const RejectBody = z.object({
 // Zod parses the rest of the ProposalCreate fields,
 // and HITLService.submitProposal validates ops against the live graph.
 // `skillRunId` is not here on purpose.
-// A running skill is identified by the credential it calls with,
-// and a person filing a proposal has no run,
+// A running skill is identified by the credential it calls with, and a person filing a proposal has no run,
 // so there is nobody left for the field to come from.
 const CreateBody = ProposalCreate.omit({ workspaceId: true, skillRunId: true }).openapi('ProposalCreateBody')
 
@@ -55,8 +53,7 @@ export interface ProposalsRouterDeps {
   hitlService: HITLService
   /**
    * Holds a run to one outcome, a question or a proposal.
-   * Absent, nothing is gated,
-   * which is what an in-memory composition without skills wants.
+   * Absent, nothing is gated, which is what an in-memory composition without skills wants.
    */
   outputGate?: RunOutputGate
   proposalRepository: ProposalRepository
@@ -193,8 +190,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
   /**
    * Refuse a proposal that belongs to somebody else.
    *
-   * Reported as absent rather than forbidden,
-   * so the answer never confirms that another person's proposal exists.
+   * Reported as absent rather than forbidden, so the answer never confirms that another person's proposal exists.
    */
   function requireVisible(context: Context, proposal: ProposalEntity): void {
     if (!getViewerContext(context) || seesEveryone(context))
@@ -222,8 +218,7 @@ export function createProposalsRouter(deps: ProposalsRouterDeps): OpenAPIHono {
     const workspaceId = getWorkspaceId(context)
     const { status, limit, offset, showAll } = context.req.valid('query')
     const statuses = status === undefined ? undefined : Array.isArray(status) ? status : [status]
-    // Show All is the one way to read another person's unsettled work,
-    // so everyone else is narrowed whatever they send.
+    // Show All is the one way to read another person's unsettled work, so everyone else is narrowed whatever they send.
     // No viewer is an open composition (in-memory), which narrows nothing.
     const viewerId = (!getViewerContext(context) || (showAll && seesEveryone(context)))
       ? undefined

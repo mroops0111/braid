@@ -9,8 +9,7 @@ import { getWorkspaceId } from '../middleware/workspaceId.js'
 import { NotFoundResponse, WorkspaceIdParam } from './_shared.js'
 import { loadWorkspaceById } from './helpers.js'
 
-// A window either side of the cited range,
-// so a reader sees the line in its own context, not a bare fragment.
+// A window either side of the cited range, so a reader sees the line in its own context, not a bare fragment.
 const CONTEXT_LINES = 4
 // A cited range is evidence, not a file viewer.
 // Anything larger is a sign the reference is too broad to read inline.
@@ -60,8 +59,7 @@ const excerptRoute = createRoute({
  * The local copy of a cited location, for reading in place.
  *
  * Distinct from the canonical link, which leaves for the host.
- * This is the mirror already on disk,
- * which is what a reader wants while reading rather than acting,
+ * This is the mirror already on disk, which is what a reader wants while reading rather than acting,
  * and the only one that works for a source with no host.
  */
 export function createSourceExcerptRouter(deps: SourceExcerptRouterDeps): OpenAPIHono {

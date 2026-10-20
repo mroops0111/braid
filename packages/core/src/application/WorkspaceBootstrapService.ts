@@ -14,8 +14,8 @@ export class WorkspaceBootstrapService {
   constructor(private readonly deps: WorkspaceBootstrapServiceDeps) {}
 
   /**
-   * Idempotent. Runs git init,
-   * then reconciles the graph store against `model.json` when they disagree.
+   * Idempotent.
+   * Runs git init, then reconciles the graph store against `model.json` when they disagree.
    */
   async ensure(workspace: Workspace): Promise<void> {
     await this.deps.history.ensureInitialised(workspace)

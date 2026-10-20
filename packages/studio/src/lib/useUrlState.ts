@@ -11,18 +11,18 @@ export interface UrlState {
 
 /**
  * The hash encodes the active workspace and surface.
+ *
  *   #/ws/<id>            no surface stated, so the app picks where to land
  *   #/ws/<id>/<surface>  a workspace surface, Graph, Ask, Proposals, Actions, History
  *
  * Graph is a named surface rather than the absence of one.
- * A bare workspace url has to mean "land me somewhere sensible",
- * for an arrival to be able to choose,
+ * A bare workspace url has to mean "land me somewhere sensible", for an arrival to be able to choose,
  * and it cannot mean that and Graph at the same time.
+ *
  *   #/settings           account-level Settings, no workspace context
  *
  * Settings sits at the root because it is not workspace-scoped.
- * Editing the server connection list means the same thing,
- * regardless of which workspace you were last looking at.
+ * Editing the server connection list means the same thing, regardless of which workspace you were last looking at.
  */
 export function readUrl(): UrlState {
   const hash = typeof window === 'undefined' ? '' : window.location.hash
@@ -36,8 +36,7 @@ export function readUrl(): UrlState {
   const workspaceId = parts[1] ?? null
   const candidate = parts[2]
   // 'settings' is not a workspace-scoped surface, so reject it here.
-  // If someone hand-types #/ws/foo/settings,
-  // we drop them at workspace home rather than render a confused mix.
+  // If someone hand-types #/ws/foo/settings, we drop them at workspace home rather than render a confused mix.
   const surface = candidate
     && candidate !== 'settings'
     && (SURFACE_VALUES as readonly string[]).includes(candidate)

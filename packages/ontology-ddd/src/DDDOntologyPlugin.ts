@@ -34,34 +34,29 @@ function localeEdges(edges: readonly Omit<EdgeTypeDescriptor, 'label'>[]): EdgeT
 }
 
 /**
- * The default DDD ontology, consolidating Strategic DDD (Evans),
- * Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young),
- * as framed by Khononov's Learning Domain-Driven Design (2021).
+ * The default DDD ontology, as framed by Khononov's Learning Domain-Driven Design (2021).
+ * It consolidates Strategic DDD (Evans), Tactical DDD (Vernon), EventStorming (Brandolini), and CQRS (Young).
  * Every node and edge description tags its sub-domain and cites its source,
  * so an LLM or reviewer knows which tradition each element comes from.
- * Editing a type here flows through the ontology contract to Studio,
- * the structural and ontology-type validators, and the ontology API,
- * with no change needed on those sides.
+ * Editing a type here flows through the ontology contract to Studio, the structural and ontology-type validators,
+ * and the ontology API, with no change needed on those sides.
  */
 export const dddOntology = defineOntologyPlugin({
   ontologyId: 'ddd',
 
-  // DDD converges intent and code. Code is the required floor,
-  // the honest record of what shipped, so every workspace has it.
+  // DDD converges intent and code.
+  // Code is the required floor, the honest record of what shipped, so every workspace has it.
   // Intent is optional, a brownfield model starts from code alone,
   // via derived mode, then intent converges it and lands as evidence.
-  // Intent is the unit-bearing role, each doc is one extraction unit,
-  // its sync drives the Reactor. Code is context the per-unit skill reads,
-  // and seeds derived mode when no intent source exists.
+  // Intent is the unit-bearing role, each doc is one extraction unit, its sync drives the Reactor.
+  // Code is context the per-unit skill reads, and seeds derived mode when no intent source exists.
   sourceRoles: localeRoles([
     { id: 'intent', required: false, unitBearing: true, pathSegment: 'intents' },
     { id: 'code', required: true, pathSegment: 'codebases' },
   ]),
 
-  // Two readers, because this ontology's premise is that intent and code,
-  // come from different people.
-  // The split is about how much apparatus each wants,
-  // rather than which conclusions they are allowed to see,
+  // Two readers, because this ontology's premise is that intent and code, come from different people.
+  // The split is about how much apparatus each wants, rather than which conclusions they are allowed to see,
   // so a conclusion names no audience and both readers get it.
   audiences: [
     {
@@ -80,8 +75,7 @@ export const dddOntology = defineOntologyPlugin({
   ],
 
   // SKILL.md prompts shipped with this ontology.
-  // They encode DDD-specific reasoning, like the Context Mapping edges,
-  // that a non-DDD ontology should not inherit,
+  // They encode DDD-specific reasoning, like the Context Mapping edges, that a non-DDD ontology should not inherit,
   // so they live here rather than in @braidhq/core.
   // The id is composed as `ddd:<directory basename>`, ddd from ontologyId,
   // so the namespace is never repeated or forgotten here.
@@ -92,8 +86,8 @@ export const dddOntology = defineOntologyPlugin({
     { directory: skillDir('scan') },
   ],
 
-  // Reference docs every SKILL.md above consults, so the DDD vocabulary,
-  // wiring rules, and id conventions live in one place, not per prompt.
+  // Reference docs every SKILL.md above consults,
+  // so the DDD vocabulary, wiring rules, and id conventions live in one place, not per prompt.
   // The runner mounts it under this ontology's namespace and injects the path.
   referenceDir: skillDir('shared'),
 
@@ -217,10 +211,8 @@ export const dddOntology = defineOntologyPlugin({
     },
 
     // Context Mapping, Strategic DDD from Evans Blue Book Part IV.
-    // Every edge runs BoundedContext to BoundedContext,
-    // each pattern with its own direction and cardinality.
-    // These are strategic relationships between teams and integrations,
-    // not derivable from individual feature slices.
+    // Every edge runs BoundedContext to BoundedContext, each pattern with its own direction and cardinality.
+    // These are strategic relationships between teams and integrations, not derivable from individual feature slices.
     {
       id: EdgeTypeId.parse('partnership'),
       description: 'Symmetric: two BoundedContexts are committed to succeed or fail together; coordinated planning and joint releases. Strategic DDD Context Mapping (Evans Blue Book Part IV; Khononov 2021 ch. 4).',
@@ -280,11 +272,9 @@ export const dddOntology = defineOntologyPlugin({
   ]),
 
   // Batch and reactor binding.
-  // The per-unit skill is ddd:extract.
   // The checkpoint ddd:reconcile fires every 5 successful extracts,
   // and once more at the end of the loop for global validation.
-  // When the workspace has no intent source,
-  // ddd:scan derives units from the codebase.
+  // When the workspace has no intent source, ddd:scan derives units from the codebase.
   batch: {
     perUnit: {
       skillId: SkillId.parse('ddd:extract'),

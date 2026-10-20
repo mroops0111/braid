@@ -14,10 +14,8 @@ const GENERIC_FILE_NAMES = new Set(['index', 'readme', 'main', 'doc', 'spec'])
 /**
  * The name a reader would use for the document a reference points into.
  *
- * The last path segment is usually it,
- * but a spec kept as a folder with an `index.md` inside is called "index",
- * which names every such spec identically,
- * and drops the one segment that identified it.
+ * The last path segment is usually it, but a spec kept as a folder with an `index.md` inside is called "index",
+ * which names every such spec identically, and drops the one segment that identified it.
  */
 function documentName(uri: string): string {
   const segments = uri.split('/').filter(Boolean)
@@ -31,8 +29,7 @@ function documentName(uri: string): string {
 /**
  * The same reference, named the way this reader recognises it.
  *
- * A summary reader is told which document and which section,
- * since a path and a line range say nothing to them,
+ * A summary reader is told which document and which section, since a path and a line range say nothing to them,
  * and a full path is mostly noise.
  * The reference is not hidden, only spelled differently.
  */
@@ -48,15 +45,13 @@ function summariseLocation(ref: BlockRef): string {
  * The inline text is the local mirror we already have.
  * This is the document in the browser and the code in its hosted repository,
  * which is where a reader acts on evidence rather than just reads it.
- * Hosted targets forbid framing,
- * and the reader's own session lives in their browser, so it opens a new tab.
+ * Hosted targets forbid framing, and the reader's own session lives in their browser, so it opens a new tab.
  */
 function CanonicalLink({ reference }: { reference: BlockRef['reference'] }) {
   const { t } = useTranslation()
   const workspaceId = useWorkspaceScope()
   // Resolved when the reader points at it, never on render.
-  // One answer carries dozens of references,
-  // and resolving every one on mount saturates the per-host connection pool,
+  // One answer carries dozens of references, and resolving every one on mount saturates the per-host connection pool,
   // which stalls every later request.
   const [wanted, setWanted] = useState(false)
   const { data } = useQuery({
@@ -89,10 +84,8 @@ function CanonicalLink({ reference }: { reference: BlockRef['reference'] }) {
 /**
  * The cited lines from the local mirror, read in place.
  *
- * The canonical link leaves for the host,
- * which is right when acting on evidence and wrong when merely reading it.
- * This is the copy already on disk,
- * and the only view a source with no host can offer at all.
+ * The canonical link leaves for the host, which is right when acting on evidence and wrong when merely reading it.
+ * This is the copy already on disk, and the only view a source with no host can offer at all.
  */
 /**
  * Whether the mirror still says what was cited.
@@ -159,27 +152,22 @@ function InlineExcerpt({ reference }: { reference: BlockRef['reference'] }) {
 }
 
 /**
- * A reference the run opened itself reads as unrecorded,
- * because no node in the graph cites it yet.
+ * A reference the run opened itself reads as unrecorded, because no node in the graph cites it yet.
  */
 function EvidenceRow({ entry }: { entry: BlockRef }) {
   const { t } = useTranslation()
   const detail = useEvidenceDetail()
   const readable = entry.reference.location.startLine !== undefined
   // Anyone may open anything.
-  // What the audience settles is whether it starts open,
-  // never what may be reached, and a spec is the business reader's own document,
-  // so gating the excerpt on evidence depth locked them out of it.
+  // What the audience settles is whether it starts open, never what may be reached,
+  // and a spec is the business reader's own document, so gating the excerpt on evidence depth locked them out of it.
   //
   // One form, two starting states.
   // Depth used to add a path line and a preview of the recorded snippet,
-  // which put a second rendering of the same reference beside the first,
-  // in a different vocabulary,
+  // which put a second rendering of the same reference beside the first, in a different vocabulary,
   // and then swapped it for a third when the reader expanded it.
-  // The reference reads one way now,
-  // and a reader who wants the code sees it without asking twice.
-  // Held as an override rather than as the state itself,
-  // so changing reader changes what a reference opens as,
+  // The reference reads one way now, and a reader who wants the code sees it without asking twice.
+  // Held as an override rather than as the state itself, so changing reader changes what a reference opens as,
   // while a row this reader has already opened or shut stays as they left it.
   const [override, setOverride] = useState<boolean | null>(null)
   const open = override ?? (readable && detail === 'full')

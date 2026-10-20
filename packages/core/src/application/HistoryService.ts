@@ -32,8 +32,7 @@ export interface HistoryServiceDeps {
   eventBus?: WorkspaceEventBus
   clock: Clock
   /**
-   * Snapshots displayName + email into the `restore` commit,
-   * so git stores the human's identity.
+   * Snapshots displayName + email into the `restore` commit, so git stores the human's identity.
    * Defaults to a no-op directory, the git layer falls back to `userId@braid.local`.
    */
   userDirectory?: UserDirectory
@@ -113,10 +112,8 @@ export class HistoryService {
   }
 
   /**
-   * Commit whatever artifact changes a caller has just persisted to disk,
-   * with the supplied commit message.
-   * The caller is responsible for holding the per-workspace lock,
-   * so the commit isn't racing a concurrent restore,
+   * Commit whatever artifact changes a caller has just persisted to disk, with the supplied commit message.
+   * The caller is responsible for holding the per-workspace lock, so the commit isn't racing a concurrent restore,
    * and for having already written its file changes.
    * `userId` is snapshotted into the git author line.
    */

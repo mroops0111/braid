@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { useMcpEndpoint } from '@/lib/queries'
 
-// Three tones rather than five, since a reader acts on serving, broken, or
-// absent. Why it is absent is the hint's job, not the badge's.
+// Three tones rather than five, since a reader acts on serving, broken, or absent.
+// Why it is absent is the hint's job, not the badge's.
 const TONE = {
   ready: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   unreachable: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -32,8 +32,7 @@ function badgeFor(state: McpEndpointStatus['state']) {
 export function McpEndpointCard() {
   const { t } = useTranslation()
   const { data: status } = useMcpEndpoint()
-  // A server that reports nothing predates the endpoint, so say nothing
-  // rather than claiming it is off.
+  // A server that reports nothing predates the endpoint, so say nothing rather than claiming it is off.
   if (!status)
     return null
   const badge = badgeFor(status.state)

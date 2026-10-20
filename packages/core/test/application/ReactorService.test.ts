@@ -390,8 +390,9 @@ describe('ReactorService', () => {
 
   it('throttles after maxRunsPerHour dispatches in a rolling 1h window', async () => {
     const { workspace, eventBus, digest, captured } = await setup({ maxRunsPerHour: 2 })
-    // Each sync brings a "changed" sha, so the diff has something to dispatch on. Without rotating,
-    // once the ledger catches up to the digest default, subsequent syncs see unchanged units and emit completed{0}.
+    // Each sync brings a "changed" sha, so the diff has something to dispatch on.
+    // Without rotating, once the ledger catches up to the digest default,
+    // subsequent syncs see unchanged units and emit completed{0}.
     const shas: SourceUnitSha[] = [
       ('a'.repeat(64)) as SourceUnitSha,
       ('b'.repeat(64)) as SourceUnitSha,

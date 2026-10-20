@@ -18,8 +18,7 @@ export interface SkillRunSpec {
   readonly args: string
   /**
    * Set when the run's value originated from a `source` picker.
-   * Plumbing it through lets the server record an observation,
-   * against the unit on successful completion.
+   * Plumbing it through lets the server record an observation, against the unit on successful completion.
    * Other run kinds leave it undefined.
    */
   readonly sourceUnit?: {
@@ -34,12 +33,9 @@ interface ActionInputFormProps {
   disabled: boolean
   /**
    * Submit handler. Receives one run spec per run to fire.
-   * A single-value form yields a one-element array,
-   * a multi-pick with N selected values fans out to N elements,
-   * so the parent can spawn N parallel skill runs,
-   * sharing the same per-skill conversation key.
-   * When the input came from a `source` picker,
-   * the spec carries `sourceUnit`.
+   * A single-value form yields a one-element array, a multi-pick with N selected values fans out to N elements,
+   * so the parent can spawn N parallel skill runs, sharing the same per-skill conversation key.
+   * When the input came from a `source` picker, the spec carries `sourceUnit`.
    */
   onSubmit: (runs: readonly SkillRunSpec[]) => void
   submitLabel?: string
@@ -63,17 +59,10 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     () => Object.fromEntries(inputs.filter(i => i.kind === 'multi-pick').map(input => [input.name, []])),
   )
 
-  // Required inputs must be filled.
-  // Multi-pick required = one selection,
-  // free text required = a non-empty value.
-  //
-  // A pick is different.
-  // What makes it filled is the value naming one of its options,
-  // rather than the value being non-empty.
+  // A pick is filled when its value names one of its options, rather than when the value is non-empty.
   // A skill is free to give an option the empty value, and reconcile does,
   // since "build and validate" is the mode you get by passing no mode at all.
-  // Read as free text, that choice looked like no choice,
-  // and the run button never enabled.
+  // Read as free text, that choice looked like no choice, and the run button never enabled.
   const missingRequired = inputs.filter((input) => {
     if (input.optional)
       return false
@@ -86,8 +75,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
   })
   // Refuse more than one multi-pick per skill.
   // The cartesian product gets too big and the transcript unreadable.
-  // The validator could enforce this at load time too,
-  // this is the backstop.
+  // The validator could enforce this at load time too, this is the backstop.
   const multiPickInputs = inputs.filter(i => i.kind === 'multi-pick')
   const tooManyMultiPicks = multiPickInputs.length > 1
   const canSubmit = !disabled && missingRequired.length === 0 && !tooManyMultiPicks
@@ -151,8 +139,7 @@ export function ActionInputForm({ workspaceId, inputs, disabled, onSubmit, submi
     onSubmit(runs)
   }
 
-  // Cmd or Ctrl plus Enter submits from any field,
-  // so plain Enter stays a newline for multi-sentence answers.
+  // Cmd or Ctrl plus Enter submits from any field, so plain Enter stays a newline for multi-sentence answers.
   function handleShortcut(event: KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey) || event.nativeEvent.isComposing)
       return
@@ -285,6 +272,7 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
 /**
  * Decorate source picker options with per-unit freshness badges.
  * For each distinct sourceId carried by the options:
+ *
  * - "fresh" badge when the on-disk sha matches the recorded `lastObservedSha`,
  *   the option appears in `diff.unchanged`.
  * - "stale" badge when the recorded sha differs,
@@ -292,11 +280,9 @@ function PickField({ workspaceId, input, scalarValue, onScalarChange, multiValue
  * - no badge when the unit has never been observed,
  *   the option appears in `diff.new`.
  *
- * Returns the input options unchanged for any provider,
- * other than `source`.
+ * Returns the input options unchanged for any provider, other than `source`.
  * The hook is always called with stable order,
- * so it is safe under the rules of hooks,
- * even when `rawOptions` is empty during loading or error pre-resolution.
+ * so it is safe under the rules of hooks, even when `rawOptions` is empty during loading or error pre-resolution.
  */
 function useSourceBadges(
   workspaceId: string,
@@ -466,8 +452,7 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
     queryFn: () => api.listSkillInputOptions(workspaceId, providerKind, filter),
   })
   const rawOptions = query.data?.items ?? []
-  // Hook is always called even with [],
-  // so the rules-of-hooks order stays stable across the early returns below.
+  // Hook is always called even with [], so the rules-of-hooks order stays stable across the early returns below.
   const options = useSourceBadges(workspaceId, providerKind, rawOptions)
   const isMulti = input.kind === 'multi-pick'
 
@@ -491,9 +476,9 @@ function DynamicPick({ workspaceId, input, scalarValue, onScalarChange, multiVal
         </div>
       )
     }
-    // fallback === 'text' (default). Render a free-text field,
-    // so the user can still drive the skill manually,
-    // e.g. a fresh workspace letting `ddd:extract` still take a scope.
+    // fallback === 'text' (default).
+    // Render a free-text field,
+    // so the user can still drive the skill manually, e.g. a fresh workspace letting `ddd:extract` still take a scope.
     return (
       <input
         id={`input-${input.name}`}

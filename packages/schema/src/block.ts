@@ -22,8 +22,7 @@ export type BlockRef = z.infer<typeof BlockRef>
 const blockBase = {
   /**
    * What differs between readers is usually how much of a reference is shown,
-   * which the audience's own `evidenceDetail` decides,
-   * rather than whether the finding above it exists.
+   * which the audience's own `evidenceDetail` decides, rather than whether the finding above it exists.
    */
   audiences: z.array(AudienceId).default([]).describe('Readers this block is only for. Empty is the common case and means every reader sees it, since a conclusion belongs to whoever asked. Name an audience only for content that says nothing to the others.'),
   group: z.string().min(1).max(80).optional().describe('A free string two blocks share to say they are readings of one comparison. It never says where to put them, the surface sets them side by side when there is room. Two flows being compared share a group, a flow and the matrix summarising it do not.'),
@@ -31,8 +30,8 @@ const blockBase = {
 }
 
 /**
- * Prose. `@node:` tokens inside the markdown render as live tags,
- * under the grammar in `reference.ts`.
+ * Prose.
+ * `@node:` tokens inside the markdown render as live tags, under the grammar in `reference.ts`.
  */
 export const ShowAnswer = z.object({
   ...blockBase,
@@ -49,8 +48,8 @@ export const ShowEvidence = z.object({
 export type ShowEvidence = z.infer<typeof ShowEvidence>
 
 /**
- * What a finding concluded. `unverifiable` is a first-class outcome,
- * a run that could not settle a question says so instead of picking a side.
+ * What a finding concluded.
+ * `unverifiable` is a first-class outcome, a run that could not settle a question says so instead of picking a side.
  */
 export const FindingVerdict = z.enum(['consistent', 'conflict', 'unverifiable']).describe('What the finding concluded. `unverifiable` is a first-class outcome, so a run that could not settle the question says so rather than picking a side.')
 export type FindingVerdict = z.infer<typeof FindingVerdict>
@@ -65,15 +64,15 @@ export type FindingSide = z.infer<typeof FindingSide>
  * How much the references behind a finding actually carry it.
  *
  * Derived from the sides, never stated by the skill.
- * A model asked for its own confidence returns a number in a narrow band,
- * whatever the evidence,
+ * A model asked for its own confidence returns a number in a narrow band, whatever the evidence,
  * so the figure reads like a measurement while carrying no information.
  */
 export const EvidenceSupport = z.enum(['corroborated', 'partial', 'thin']).describe('How far the references behind a finding carry it. Derived from the sides and never sent by a run, reading `corroborated` when every side rests on a `graph` reference, `partial` when every side has a reference but at least one is `agent`, and `thin` when a side has none.')
 export type EvidenceSupport = z.infer<typeof EvidenceSupport>
 
 /**
- * One consistency statement. A finding belongs to whoever asked the question,
+ * One consistency statement.
+ * A finding belongs to whoever asked the question,
  * so it is never engineering-only even when its evidence is a line number.
  */
 export const ShowFinding = z.object({
@@ -86,8 +85,7 @@ export const ShowFinding = z.object({
   sides: z.array(FindingSide).min(2).describe('The readings being weighed, at least two, one entry each.'),
   // Computed from the sides when the block is recorded, never sent by the skill.
   // Optional because a run log is append-only,
-  // and holds blocks written before this was derived,
-  // where dropping those lines would erase recorded history.
+  // and holds blocks written before this was derived, where dropping those lines would erase recorded history.
   support: EvidenceSupport.optional(),
   suggestedSource: z.string().min(1).max(400).optional().describe('What would settle this, named only when the verdict is `unverifiable`.'),
 }).openapi('ShowFinding')
@@ -95,8 +93,7 @@ export type ShowFinding = z.infer<typeof ShowFinding>
 
 /**
  * How a matrix cell reads at a glance.
- * The label beside it is free text the skill chooses,
- * so an ontology names its own states,
+ * The label beside it is free text the skill chooses, so an ontology names its own states,
  * while a renderer only needs to know which of five ways to colour them.
  */
 export const CellTone = z.enum(['affirmed', 'denied', 'conditional', 'conflict', 'not-applicable']).describe('How the cell reads at a glance, which is all a renderer needs to colour the grid. The label beside it stays in the run\'s own words.')
@@ -151,8 +148,7 @@ export type TraceSkip = z.infer<typeof TraceSkip>
 
 /**
  * What the run searched, read, cited, and deliberately left out.
- * Renders to both audiences,
- * because what was not looked at cannot be inferred from the answer.
+ * Renders to both audiences, because what was not looked at cannot be inferred from the answer.
  */
 export const ShowTrace = z.object({
   ...blockBase,
@@ -167,10 +163,8 @@ export type ShowTrace = z.infer<typeof ShowTrace>
 /**
  * A diagram, as a mermaid definition.
  *
- * The renderer already exists for node descriptions,
- * so this carries the definition and nothing else.
- * Use it for a flow or a state machine,
- * where the shape of the thing is the point and a table would flatten it.
+ * The renderer already exists for node descriptions, so this carries the definition and nothing else.
+ * Use it for a flow or a state machine, where the shape of the thing is the point and a table would flatten it.
  */
 export const ShowDiagram = z.object({
   ...blockBase,
@@ -191,8 +185,7 @@ export type SubgraphEdge = z.infer<typeof SubgraphEdge>
  * A slice of the graph the answer stands on.
  *
  * Node ids and the edges between them, nothing else.
- * The surface resolves each id to its own name, type, and colour,
- * so this carries no ontology vocabulary,
+ * The surface resolves each id to its own name, type, and colour, so this carries no ontology vocabulary,
  * and stays correct when a node is renamed.
  */
 export const ShowSubgraph = z.object({
@@ -210,11 +203,9 @@ export type SectionLevel = z.infer<typeof SectionLevel>
 /**
  * A part of a document, and what it is about.
  *
- * `title` on a block names one thing, and a document is a shape,
- * so nesting needs a level a title cannot carry.
+ * `title` on a block names one thing, and a document is a shape, so nesting needs a level a title cannot carry.
  * `covers` is the citation for the part rather than for the whole,
- * which is what lets one section be told it has gone stale,
- * while the rest of the document has not.
+ * which is what lets one section be told it has gone stale, while the rest of the document has not.
  */
 export const ShowSection = z.object({
   ...blockBase,
@@ -257,8 +248,7 @@ export const ShowCheckFields = z.object({
  * Whether a question that offers choices says which of them is right.
  *
  * A predicate rather than a zod check,
- * so the union member and the route body can each wrap it,
- * without the rule itself being written twice.
+ * so the union member and the route body can each wrap it, without the rule itself being written twice.
  */
 export function namesItsAnswer(check: {
   readonly choices: readonly { readonly id: string }[]
@@ -274,20 +264,16 @@ export const CHOICE_NEEDS_ANSWER = 'A question with choices names which one is r
 /**
  * One question the reader answers before they are shown the answer.
  *
- * A reader who has just read something believes they know it,
- * and is usually wrong,
+ * A reader who has just read something believes they know it, and is usually wrong,
  * so a passage that never asks cannot tell whether it landed.
  * Prose cannot carry this,
- * because holding the answer back until the reader commits,
- * is a state the surface owns rather than a sentence.
+ * because holding the answer back until the reader commits, is a state the surface owns rather than a sentence.
  *
  * `answer` travels to the reader's own machine,
- * so this checks understanding,
- * rather than guarding against a reader who wants to cheat themselves.
+ * so this checks understanding, rather than guarding against a reader who wants to cheat themselves.
  *
  * Depth is not difficulty.
- * A recall question can be brutally hard and is still recall,
- * because what makes it hard is how obscure the fact was,
+ * A recall question can be brutally hard and is still recall, because what makes it hard is how obscure the fact was,
  * rather than how much of the reader's understanding it draws on.
  */
 export const ShowCheck = ShowCheckFields.check((context) => {

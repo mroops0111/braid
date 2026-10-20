@@ -45,7 +45,7 @@ describe('createAsyncQueue', () => {
       return acc
     })()
 
-    // Tight burst: end before consumer has a chance to install a resolver.
+    // A tight burst ends the queue before the consumer has a chance to install a resolver.
     q.push(7)
     q.end()
     expect(await consumer).toEqual([7])

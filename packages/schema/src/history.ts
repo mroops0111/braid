@@ -4,8 +4,8 @@ import { GraphEdge, GraphNode, ModelSnapshot } from './model.js'
 
 /**
  * Every commit is stamped by one system operation, so this is the closed catalog of what writes to the workspace repo.
- * HITL flows get granular `entity-verb` kinds, each a distinct transition. Everything else is one kind per operation,
- * detail lives in the subject.
+ * HITL flows get granular `entity-verb` kinds, each a distinct transition.
+ * Everything else is one kind per operation, detail lives in the subject.
  */
 export const CommitKind = z.enum([
   'proposal-submit',

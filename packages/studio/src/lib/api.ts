@@ -28,8 +28,9 @@ export interface AdminUserWorkspace {
 export type AdminUser = User & { workspaces: AdminUserWorkspace[] }
 
 /**
- * GET /workspaces/:ws/clarifications/:id response. `skipReason` / `answerNote` are no longer populated,
- * the reviewer's rationale lives in git history now, but kept optional until the detail pane resurfaces them.
+ * GET /workspaces/:ws/clarifications/:id response.
+ * `skipReason` / `answerNote` are no longer populated, the reviewer's rationale lives in git history now,
+ * but kept optional until the detail pane resurfaces them.
  */
 export type ClarificationDetail = Clarification & { skipReason?: string, answerNote?: string }
 
@@ -74,8 +75,9 @@ export interface PatchWorkspaceResult {
 }
 
 /**
- * Caller-friendly error: carries the original status code so the UI can map known cases (404, 409,
- * 400 with specific text) to suggested actions rather than dumping raw `application/problem+json` on the user.
+ * A caller-friendly error that carries the original status code.
+ * It lets the UI map known cases (404, 409, 400 with specific text) to suggested actions,
+ * rather than dump raw `application/problem+json` on the user.
  */
 export class ApiError extends Error {
   constructor(
@@ -96,8 +98,8 @@ async function rawFetch<T>(baseUrl: string, token: string | null, path: string, 
       'Content-Type': 'application/json',
       // Remote mode (Bearer) takes precedence over local mode (X-Braid-User).
       // The server's `authMiddleware` resolves the Bearer token to a userId, and stamps c.set('userId').
-      // userIdMiddleware then falls through, already set. Local trust mode leaves c.get('userId') empty,
-      // so `X-Braid-User` becomes authoritative.
+      // userIdMiddleware then falls through, already set.
+      // Local trust mode leaves c.get('userId') empty, so `X-Braid-User` becomes authoritative.
       ...(token
         ? { Authorization: `Bearer ${token}` }
         : { 'X-Braid-User': getCurrentUserId() }),
@@ -155,8 +157,7 @@ export interface McpEndpointStatus {
 /**
  * Which account a run would spend, and what the caller saved towards it.
  *
- * `credential` never carries the credential itself,
- * only enough for its owner to recognise which one they saved.
+ * `credential` never carries the credential itself, only enough for its owner to recognise which one they saved.
  */
 export interface AgentCredentialStatus {
   source: 'own' | 'server' | 'none'
@@ -197,10 +198,8 @@ export const api = {
       }),
     }),
   /**
-   * Where a reference lives on its own host,
-   * or null when the source has no web address.
-   * Only the loader knows how to build it,
-   * so this asks rather than guessing at a URL shape.
+   * Where a reference lives on its own host, or null when the source has no web address.
+   * Only the loader knows how to build it, so this asks rather than guessing at a URL shape.
    */
   resolveSourceRefUrl: (workspaceId: string, sourceId: string, location: SourceLocation) =>
     fetchJson<{ url: string | null }>(`/workspaces/${encodeURIComponent(workspaceId)}/source-refs/resolve`, {
@@ -227,8 +226,7 @@ export const api = {
   /**
    * Ends the session here, and says where to end it at the identity provider.
    *
-   * Null when there is none to end,
-   * which is the case for a server running its own Google client,
+   * Null when there is none to end, which is the case for a server running its own Google client,
    * since Google's session is not Braid's to close.
    */
   logout: (returnTo: string) =>
@@ -361,7 +359,8 @@ export const api = {
     ),
 
   /**
-   * Diff a source's current units on disk against the recorded ledger. Reactor consumes this internally,
+   * Diff a source's current units on disk against the recorded ledger.
+   * Reactor consumes this internally,
    * Studio uses it to render per-option badges ("processed Nm ago" / "stale" / never seen) on the source picker.
    */
   getSourceUnitDiff: (workspaceId: string, sourceId: string) =>
@@ -388,8 +387,7 @@ export const api = {
   /**
    * Nodes ranked for a query rather than filtered by it.
    *
-   * The server fuses a substring pass with a vector pass,
-   * so an exact identifier and a paraphrase both land,
+   * The server fuses a substring pass with a vector pass, so an exact identifier and a paraphrase both land,
    * and a deployment with no embedding backend simply returns the substring hits.
    */
   searchNodes: (workspaceId: string, query: string, limit = 20) => {
@@ -452,7 +450,7 @@ export const api = {
   getClarification: (workspaceId: string, clarificationId: string) =>
     fetchJson<ClarificationDetail>(`/workspaces/${workspaceId}/clarifications/${clarificationId}`),
   /**
-   * Server mints any omitted candidate ids, skills supply them deterministically (cc-1 etc.),
+   * Server mints any omitted candidate ids, skills supply them deterministically (such as cc-1),
    * human-authored "New question" candidates leave them out and let `newClarificationCandidateId` fill in.
    */
   submitClarification: (workspaceId: string, draft: ClarificationCreateBody) =>
@@ -517,8 +515,7 @@ export const api = {
   listViewKinds: () => fetchJson<ListViewKindsResponse>('/view-kinds'),
   listViews: (workspaceId: string) =>
     fetchJson<ItemList<GeneratedView>>(`/workspaces/${workspaceId}/views`),
-  // Each segment is escaped alone,
-  // so a name carrying a slash cannot be read as a directory of its own.
+  // Each segment is escaped alone, so a name carrying a slash cannot be read as a directory of its own.
   readView: (workspaceId: string, path: string) =>
     fetchJson<ViewContent>(
       `/workspaces/${workspaceId}/views/${path.split('/').map(encodeURIComponent).join('/')}`,

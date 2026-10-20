@@ -46,8 +46,7 @@ async function sessionsSharedWithCaller(
 /**
  * Which runs this caller may read, meaning their own plus what was lent.
  *
- * A grant names a session, never a run,
- * so a run takes its answer from the conversation it belongs to.
+ * A grant names a session, never a run, so a run takes its answer from the conversation it belongs to.
  * Sharing per run would leave a resumed conversation half readable.
  */
 export async function visibleToCaller(
@@ -66,10 +65,8 @@ export async function visibleToCaller(
 /**
  * Refuse a run this caller may not read.
  *
- * Reported as absent rather than forbidden,
- * so the answer never confirms that another person's run exists.
- * An id with no record is left alone,
- * since the endpoints already answer for a run they cannot find.
+ * Reported as absent rather than forbidden, so the answer never confirms that another person's run exists.
+ * An id with no record is left alone, since the endpoints already answer for a run they cannot find.
  */
 export async function requireVisibleRun(
   context: Context,

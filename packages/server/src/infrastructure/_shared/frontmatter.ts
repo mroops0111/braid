@@ -11,8 +11,7 @@ export interface MarkdownDocument<T> {
  * Splits a markdown file into YAML frontmatter and body.
  * The YAML sits between `---` delimiters on their own lines at the top.
  * Keys are normalised recursively from kebab-case to camelCase,
- * from the YAML convention Claude Code uses to the TS convention,
- * so Zod schemas can declare fields naturally in TS.
+ * from the YAML convention Claude Code uses to the TS convention, so Zod schemas can declare fields naturally in TS.
  */
 export function parseMarkdownFrontmatter<T>(content: string): MarkdownDocument<T> {
   const lines = content.split('\n')

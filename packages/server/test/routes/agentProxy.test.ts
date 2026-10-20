@@ -25,8 +25,7 @@ function router(byToken: Record<string, string>, fetchImpl?: typeof globalThis.f
 }
 
 describe('agent proxy', () => {
-  // The CLI sends this before its first message,
-  // and reads a failure as the endpoint being unreachable.
+  // The CLI sends this before its first message, and reads a failure as the endpoint being unreachable.
   it('answers the connectivity probe without a credential', async () => {
     const response = await router({}).request('/agent-api/api/hello', { method: 'HEAD' })
     expect(response.status).toBe(200)
@@ -148,8 +147,7 @@ describe('agent proxy', () => {
     expect(response.status).toBe(401)
   })
 
-  // The agent parses this and cannot know a broker stood in the way,
-  // so a refusal has to look like the upstream's own.
+  // The agent parses this and cannot know a broker stood in the way, so a refusal has to look like the upstream's own.
   it('refuses in the shape the upstream uses', async () => {
     const response = await router({}).request('/agent-api/v1/messages', {
       method: 'POST',

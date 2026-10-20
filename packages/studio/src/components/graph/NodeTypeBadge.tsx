@@ -3,8 +3,7 @@ import { cn } from '@/lib/utils'
 import { usePaletteContext } from './usePalette'
 
 /**
- * Type badge whose colour is sourced from the workspace's resolved ontology,
- * via PaletteContext.
+ * Type badge whose colour is sourced from the workspace's resolved ontology, via PaletteContext.
  * The colour string comes from the `Ontology.nodeTypes[].color` field.
  * An ontology that skips `color` gets a deterministic hash-of-id fallback,
  * so the badge still renders distinguishable types.

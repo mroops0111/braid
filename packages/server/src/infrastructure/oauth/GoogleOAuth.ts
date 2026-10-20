@@ -17,27 +17,30 @@ export interface GoogleProfile {
 }
 
 export interface GoogleOAuthConfig {
-  // OAuth client id from the user's GCP project.
+  /** OAuth client id from the user's GCP project. */
   readonly clientId: string
-  // OAuth client secret.
+  /** OAuth client secret. */
   readonly clientSecret: string
-  // Redirect URI used by the Drive provisioning flow (existing OAuth router).
-  // Both paths must be registered in the GCP OAuth client's authorised redirect URIs list.
+  /**
+   * Redirect URI used by the Drive provisioning flow (existing OAuth router).
+   * Both paths must be registered in the GCP OAuth client's authorised redirect URIs list.
+   */
   readonly redirectUri: string
-  // Redirect URI used by the user-login flow.
-  // Optional, falls back to the Drive `redirectUri` if unset,
-  // which is what local dev wants (one path, one registered URI).
-  // Production usually points this at `${apiUrl}/auth/google/callback`,
-  // so the two flows mount on different routes.
+  /**
+   * Redirect URI used by the user-login flow.
+   * Optional, falls back to the Drive `redirectUri` if unset,
+   * which is what local dev wants (one path, one registered URI).
+   * Production usually points this at `${apiUrl}/auth/google/callback`, so the two flows mount on different routes.
+   */
   readonly loginRedirectUri?: string
 }
 
 export interface AuthorizationUrlInput {
-  // OAuth scopes requested. Braid passes Drive read-only.
+  /** OAuth scopes requested. Braid passes Drive read-only. */
   readonly scopes: readonly string[]
-  // State token (CSRF plus flow-restore).
+  /** State token (CSRF plus flow-restore). */
   readonly state: string
-  // PKCE verifier. The URL embeds its SHA-256 challenge.
+  /** PKCE verifier. The URL embeds its SHA-256 challenge. */
   readonly codeVerifier: string
 }
 
@@ -58,20 +61,20 @@ export interface RefreshedAccessToken {
  * Minimal Google OAuth 2.0 client for the installed-app or web flow.
  * We skip `openid-client` and `google-auth-library`,
  * because only four calls are needed (build URL, exchange code, refresh, revoke).
- * Avoiding a heavyweight dependency keeps the server's install footprint small,
- * and the auth surface auditable.
+ * Avoiding a heavyweight dependency keeps the server's install footprint small, and the auth surface auditable.
  */
 export class GoogleOAuth implements LoginProvider {
-  // Part of the registered redirect URI,
-  // so it is fixed once a deployment exists.
-  // Renaming it would invalidate the Google console entry.
+  /**
+   * Part of the registered redirect URI, so it is fixed once a deployment exists.
+   * Renaming it would invalidate the Google console entry.
+   */
   readonly id = 'google'
 
   constructor(private readonly config: GoogleOAuthConfig) {}
 
   /**
-   * Build the URL the user's browser is sent to. `state` and `codeVerifier`
-   * MUST be unique per flow,
+   * Build the URL the user's browser is sent to.
+   * `state` and `codeVerifier` MUST be unique per flow,
    * the caller stores them in pending-state until the callback arrives.
    */
   buildAuthorizationUrl(input: AuthorizationUrlInput): string {
@@ -118,11 +121,10 @@ export class GoogleOAuth implements LoginProvider {
   }
 
   /**
-   * Login flow URL. Same client and redirect as the Drive flow,
-   * but with `openid email profile` scopes and no `prompt=consent`.
+   * Login flow URL.
+   * Same client and redirect as the Drive flow, but with `openid email profile` scopes and no `prompt=consent`.
    * Google suppresses the consent screen when the user has already approved those scopes,
-   * which is what login wants,
-   * unlike Drive where a refresh_token is required and `prompt=consent` is forced.
+   * which is what login wants, unlike Drive where a refresh_token is required and `prompt=consent` is forced.
    */
   buildLoginUrl(input: { state: string, codeVerifier: string }): string {
     const params = new URLSearchParams({
@@ -147,10 +149,8 @@ export class GoogleOAuth implements LoginProvider {
   /**
    * Exchange an authorization code from the login flow for the user's profile.
    * Does NOT require `refresh_token`, since login is one-shot.
-   * The Braid server issues its own session afterwards,
-   * so Google's tokens are discarded after this call.
-   * Uses the userinfo endpoint instead of decoding the id_token,
-   * so no JWT verifier is pulled in just to read 3 fields.
+   * The Braid server issues its own session afterwards, so Google's tokens are discarded after this call.
+   * Uses the userinfo endpoint instead of decoding the id_token, so no JWT verifier is pulled in just to read 3 fields.
    */
   async loginWithCode(input: { code: string, codeVerifier: string }): Promise<GoogleProfile> {
     const body = new URLSearchParams({
@@ -245,7 +245,7 @@ function pkceChallenge(verifier: string): string {
 }
 
 /**
- * Helper for callers: produce a fresh PKCE verifier (32 bytes, base64url).
+ * Produces a fresh PKCE verifier for callers (32 bytes, base64url).
  * Caller stashes alongside the `state` token until the callback returns.
  */
 export function createPkceVerifier(): string {

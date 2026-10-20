@@ -21,10 +21,8 @@ export const MENU_PREFERRED_HEIGHT_PX = MENU_VISIBLE_ROWS * ROW_HEIGHT_PX + LIST
 /**
  * Where the menu's left edge goes, so it stays on screen.
  *
- * Follows the caret while there is room,
- * and stops short of both the container's right edge and the window's.
- * A menu that runs past either loses the ids on its right,
- * which are the part a reader picks by.
+ * Follows the caret while there is room, and stops short of both the container's right edge and the window's.
+ * A menu that runs past either loses the ids on its right, which are the part a reader picks by.
  * Both edges are checked, since a container can be wider than the window.
  *
  * Never negative.
@@ -75,10 +73,8 @@ export function placeMenu(input: {
 /**
  * How many matches the menu stopped short of listing.
  *
- * Zero where nothing was cut,
- * so a reader who sees everything is not told there is more.
- * An absent total means the caller tracks none,
- * which reads the same as nothing being cut.
+ * Zero where nothing was cut, so a reader who sees everything is not told there is more.
+ * An absent total means the caller tracks none, which reads the same as nothing being cut.
  */
 export function hiddenMatchCount(shown: number, total: number | undefined): number {
   return Math.max(0, (total ?? shown) - shown)
@@ -96,14 +92,12 @@ export interface MenuKeyPress {
 
 /**
  * Reads a key press as a candidate-menu action.
- * One definition for the mention menu and the picker,
- * so a key cannot mean different things in the two.
- * Callers map the outcome onto their own state,
- * which is where they genuinely differ.
+ * One definition for the mention menu and the picker, so a key cannot mean different things in the two.
+ * Callers map the outcome onto their own state, which is where they genuinely differ.
  */
 export function readMenuKey(press: MenuKeyPress): MenuKeyOutcome {
-  // An IME owns the keyboard while composing. Enter confirms its candidate,
-  // never a menu candidate.
+  // An IME owns the keyboard while composing.
+  // Enter confirms its candidate, never a menu candidate.
   if (press.isComposing)
     return null
   switch (press.key) {

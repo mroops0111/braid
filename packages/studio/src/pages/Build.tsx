@@ -33,8 +33,7 @@ import { useWorkspacePolicy } from '@/policy'
  * That one settles which state a document shows when several are true.
  *
  * Conflicts sit low despite mattering, because nothing here resolves one yet.
- * Placed above the groups a button does fix,
- * they would bury those behind dozens of rows that only ask to be read.
+ * Placed above the groups a button does fix, they would bury those behind dozens of rows that only ask to be read.
  */
 const GROUPS: readonly CoverageState[] = [
   'running',
@@ -53,11 +52,11 @@ const ACTIONABLE: ReadonlySet<CoverageState> = new Set<CoverageState>(['uncovere
  * Every source document, and what the model has made of it.
  *
  * The row is the document rather than the run,
- * because a reader opens this asking what the model still does not know,
- * rather than what has executed. A document read three times is still one row.
+ * because a reader opens this asking what the model still does not know, rather than what has executed.
+ * A document read three times is still one row.
  *
- * Grouped rather than columned. Nothing here is dragged,
- * the states are derived, and two of them hold almost every document.
+ * Grouped rather than columned.
+ * Nothing here is dragged, the states are derived, and two of them hold almost every document.
  * Lanes of equal width would spend most of the board on empty groups,
  * and force a second scroll axis to reach the ones that are not.
  *
@@ -86,8 +85,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
   const mayRunUnits = mayRun(unitStage?.skillId)
   const { data: activePlan } = useBatchStatus(workspaceId)
   // One build at a time, because the graph only accumulates.
-  // The server refuses a second, so the surface stops offering one,
-  // rather than letting a person find out by error.
+  // The server refuses a second, so the surface stops offering one, rather than letting a person find out by error.
   // A batch that has not spawned its first run counts too, since it is about to.
   const busy = (board?.building ?? false)
     || activePlan?.status === 'running'
@@ -116,8 +114,7 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
 
   return (
     // The height context the groups scroll inside.
-    // Without it the list lays out at its content height,
-    // and the surface clips it with no way down.
+    // Without it the list lays out at its content height, and the surface clips it with no way down.
     <div className="flex h-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <StageStrip
@@ -171,13 +168,11 @@ export function BuildPage({ workspaceId }: { workspaceId: string }) {
 /**
  * Covering a group, which is a batch.
  *
- * One plan rather than a loop of runs, because a loop has no order,
- * no checkpoint, and nothing to resume from,
+ * One plan rather than a loop of runs, because a loop has no order, no checkpoint, and nothing to resume from,
  * and forty documents would start forty subprocesses at once.
  * The plan is the same one a first bootstrap builds, scoped to these.
  *
- * Applying without review is what makes a bootstrap fast,
- * and it is also what puts unreviewed work in the graph,
+ * Applying without review is what makes a bootstrap fast, and it is also what puts unreviewed work in the graph,
  * so it is asked here rather than assumed either way.
  */
 function CoverDialog({ workspaceId, cards, skillId, onClose }: {
@@ -236,8 +231,8 @@ function CoverDialog({ workspaceId, cards, skillId, onClose }: {
 /**
  * What to call a step, in the reader's language.
  *
- * A skill id is an address. The ontology declares what its steps are called,
- * and localises that the way it localises its node types,
+ * A skill id is an address.
+ * The ontology declares what its steps are called, and localises that the way it localises its node types,
  * so a board showing the id is showing plumbing.
  * Falls back to the id, which is at least true.
  */
@@ -294,8 +289,7 @@ function StageStrip({ board, workspaceId, canRun, busy, onOpenInbox }: {
  *
  * The reason is a fact the server already holds, never a prompt to guess at,
  * such as how many answers are queued or when the step last ran.
- * A step with no reason is still shown,
- * because a pipeline missing a stage reads as a broken pipeline.
+ * A step with no reason is still shown, because a pipeline missing a stage reads as a broken pipeline.
  */
 function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: {
   stage: CoverageStage
@@ -390,10 +384,8 @@ function StageCell({ stage, workspaceId, canRun, busy, onOpenInbox, standing }: 
 /**
  * Every document at once, one segment each.
  *
- * The corpus is the thing being digested,
- * and a count says how far along that is without ever showing its shape.
- * This shows the shape in one line,
- * the only place a running batch is watched moving rather than reported on.
+ * The corpus is the thing being digested, and a count says how far along that is without ever showing its shape.
+ * This shows the shape in one line, the only place a running batch is watched moving rather than reported on.
  */
 function CoverageRibbon({ cards, busy, selectedKey, onSelect }: {
   cards: readonly CoverageCard[]
@@ -436,11 +428,9 @@ function CoverageRibbon({ cards, busy, selectedKey, onSelect }: {
 /**
  * One state, and the documents in it.
  *
- * The heading carries the state's colour so the rows do not have to,
- * and it is where a bulk action belongs,
+ * The heading carries the state's colour so the rows do not have to, and it is where a bulk action belongs,
  * because covering a group is one batch rather than a row of buttons.
- * Settled documents start folded,
- * since a reader opens this to find what is still asking for something.
+ * Settled documents start folded, since a reader opens this to find what is still asking for something.
  */
 function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunAll }: {
   workspaceId: string
@@ -498,8 +488,7 @@ function Group({ workspaceId, state, cards, stage, selectedKey, onSelect, onRunA
  * What the run on this row is doing, while it is doing it.
  *
  * A spinner says only that something is happening.
- * The stream has carried the work the whole time,
- * so the row says which file is being read and how much has come back,
+ * The stream has carried the work the whole time, so the row says which file is being read and how much has come back,
  * and a reader can tell a working run from a stuck one without opening it.
  *
  * Only ever one of these on screen, since one build runs at a time.
@@ -537,8 +526,7 @@ function LiveLine({ workspaceId, runId }: { workspaceId: string, runId: string }
  * or in the detail pane, where there is room to say what it would mean.
  *
  * One line, until a run is reading it.
- * The counts sit right so the eye can run down them,
- * and the two that nearly every document has are given fixed widths,
+ * The counts sit right so the eye can run down them, and the two that nearly every document has are given fixed widths,
  * so that column holds still while the rest varies.
  */
 function Row({ workspaceId, card, active, onClick }: {
@@ -577,17 +565,14 @@ function Row({ workspaceId, card, active, onClick }: {
 /**
  * One document's standing, and the reasoning that produced it.
  *
- * Deciding happens in the Inbox,
- * so what waits here is named and linked rather than reviewed twice.
- * What this pane adds is the run's own blocks,
- * the only place the working behind a card can be read.
+ * Deciding happens in the Inbox, so what waits here is named and linked rather than reviewed twice.
+ * What this pane adds is the run's own blocks, the only place the working behind a card can be read.
  */
 /**
  * One document's standing, and the record of how it got there.
  *
  * Facts and links rather than a second review pane.
- * Deciding on a change is the Inbox's act and it has the room for it,
- * so what waits here is named and pointed at.
+ * Deciding on a change is the Inbox's act and it has the room for it, so what waits here is named and pointed at.
  * What this pane adds is the document's own slice of the graph,
  * and the run that last read it, the two things with no other home.
  */

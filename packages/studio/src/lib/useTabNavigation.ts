@@ -2,8 +2,8 @@ import type { ProposalId } from '@braidhq/schema'
 import { createContext, useContext } from 'react'
 
 /**
- * Cross-tab navigation for non-graph entities. Provided by `App.tsx`,
- * consumed by views such as an applied Clarification footer,
+ * Cross-tab navigation for non-graph entities.
+ * Provided by `App.tsx`, consumed by views such as an applied Clarification footer,
  * that want to deep-link into another tab.
  */
 export interface TabNavigation {

@@ -4,13 +4,11 @@ export type WorkspaceEventListener = (event: WorkspaceEvent) => void
 
 /**
  * Process-local pub/sub of `WorkspaceEvent`s.
- * Each publish fans out synchronously to every subscriber of that workspace,
- * matched by `event.workspaceId`.
+ * Each publish fans out synchronously to every subscriber of that workspace, matched by `event.workspaceId`.
  * The Studio subscribes via a single SSE per workspace.
- * Backend services publish into the same bus instance,
- * after every state mutation that downstream views care about.
+ * Backend services publish into the same bus instance, after every state mutation that downstream views care about.
  *
- * Not persistent: events that arrive while no one is subscribed are dropped.
+ * Events are not persisted, so one that arrives while no one is subscribed is dropped.
  * The Studio reconciles by re-fetching list endpoints on `EventSource` open.
  */
 export interface WorkspaceEventBus {
@@ -18,15 +16,13 @@ export interface WorkspaceEventBus {
   publish: (event: WorkspaceEvent) => void
   /**
    * Subscribe to events for a single workspace.
-   * Returns an unsubscribe function the caller MUST invoke to free the slot,
-   * the bus holds it by strong reference.
+   * Returns an unsubscribe function the caller MUST invoke to free the slot, the bus holds it by strong reference.
    */
   subscribe: (workspaceId: WorkspaceId, listener: WorkspaceEventListener) => () => void
   /**
    * Subscribe to every workspace at once.
    *
-   * For a process-wide reaction,
-   * that must not depend on someone remembering to register the workspace,
+   * For a process-wide reaction, that must not depend on someone remembering to register the workspace,
    * such as keeping a derived index in step with whatever mutated the graph.
    */
   subscribeAll: (listener: WorkspaceEventListener) => () => void

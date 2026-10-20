@@ -23,8 +23,7 @@ export type AgentBindingDescriptor = z.infer<typeof AgentBindingDescriptor>
  * What a reader may learn about a stored agent credential.
  *
  * Never the credential.
- * The store keeps it encrypted and no route reads it back,
- * so the owner sees enough to recognise which one they saved,
+ * The store keeps it encrypted and no route reads it back, so the owner sees enough to recognise which one they saved,
  * and nothing an onlooker could use.
  */
 export const AgentCredentialSummary = z.object({
@@ -44,8 +43,7 @@ export type AgentCredentialSummary = z.infer<typeof AgentCredentialSummary>
 /**
  * Which account a run would spend.
  *
- * `own` is the author's stored credential,
- * `server` the deployment's shared one,
+ * `own` is the author's stored credential, `server` the deployment's shared one,
  * and `none` says a run would be refused.
  * Shown so a reader knows which side of a shared seat they are on.
  */

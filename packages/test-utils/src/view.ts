@@ -16,8 +16,7 @@ import type {
  * A format nothing ships, which is the point.
  *
  * `ViewArtifactFormat` is an open string,
- * so a test naming one a plugin happens to write,
- * would read as a claim that the framework knows that format.
+ * so a test naming one a plugin happens to write, would read as a claim that the framework knows that format.
  * A word no form could produce keeps the openness visible,
  * and a reader of the fixture is never told a capability exists.
  */
@@ -26,8 +25,7 @@ export const FIXTURE_FORMAT = 'fixture' as ViewArtifactFormat
 /**
  * A kind and a form nobody ships either.
  *
- * The framework serves a kind it has never heard of,
- * so its own tests name none of the kinds a plugin registers.
+ * The framework serves a kind it has never heard of, so its own tests name none of the kinds a plugin registers.
  */
 export const FIXTURE_KIND = 'kind-a' as ViewKind
 export const FIXTURE_FORM = 'form-a' as ViewFormId

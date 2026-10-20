@@ -16,8 +16,8 @@ export interface MultiSelectOption {
   description?: string | undefined
   /**
    * Optional informational chip rendered next to the option label.
-   * Used by the source picker to mark per-unit freshness,
-   * such as "processed Nm ago" or "stale". Leave unset for plain options.
+   * Used by the source picker to mark per-unit freshness, such as "processed Nm ago" or "stale".
+   * Leave unset for plain options.
    * The chip is purely informational, it does not disable selection.
    */
   badge?: {
@@ -39,12 +39,9 @@ interface MultiSelectDropdownProps {
 }
 
 /**
- * Generic multi-select with a search filter,
- * and a selected-as-chips overflow line.
- * Decoupled from any specific data shape,
- * callers pass plain `{ value, label, description? }` options.
- * Built on Radix Popover,
- * so click-outside and Escape close the menu without extra wiring.
+ * Generic multi-select with a search filter, and a selected-as-chips overflow line.
+ * Decoupled from any specific data shape, callers pass plain `{ value, label, description? }` options.
+ * Built on Radix Popover, so click-outside and Escape close the menu without extra wiring.
  */
 export function MultiSelectDropdown({
   id,

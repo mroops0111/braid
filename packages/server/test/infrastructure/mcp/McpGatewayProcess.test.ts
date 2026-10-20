@@ -33,8 +33,7 @@ interface Invocation {
 
 /**
  * Spawns children that exit on their own until `liveFromInvocation`,
- * so the supervisor's restart loop runs a bounded number of times,
- * and the last child stays up for `stop()` to kill.
+ * so the supervisor's restart loop runs a bounded number of times, and the last child stays up for `stop()` to kill.
  */
 function createSpawn(liveFromInvocation: number): {
   spawn: (command: string, args: readonly string[], options: SpawnOptions) => ChildProcess
@@ -162,8 +161,7 @@ describe('McpGatewayProcess', () => {
       })
       await gateway.start()
       await until(() => invocations.length === 2)
-      // A missing binary reads the same as a crash,
-      // so the operator gets the reason and the config path, not silence.
+      // A missing binary reads the same as a crash, so the operator gets the reason and the config path, not silence.
       expect(messages[0]).toContain('ENOENT')
       expect(messages[0]).toContain(configPath)
       await gateway.stop()

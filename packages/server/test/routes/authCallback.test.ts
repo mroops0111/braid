@@ -62,8 +62,7 @@ async function startFlow(app: OpenAPIHono): Promise<string> {
 
 describe('OAuth callback', () => {
   it('adopts an existing record by email when the provider changes, rather than forking the person', async () => {
-    // An authorization server taking over the login changes the `sub`,
-    // though the person behind it is the same.
+    // An authorization server taking over the login changes the `sub`, though the person behind it is the same.
     // Joining on `sub` alone would create a second record,
     // and their workspaces, runs, and proposals would stay on the first.
     const app = await buildAuthApp()

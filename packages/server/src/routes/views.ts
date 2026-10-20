@@ -16,8 +16,7 @@ export interface ViewsRouterDeps {
 /**
  * A view is asked for by its three parts rather than by one opaque string.
  *
- * Each segment is its own parameter,
- * so a name carrying a separator cannot be read as a directory of its own,
+ * Each segment is its own parameter, so a name carrying a separator cannot be read as a directory of its own,
  * and the router refuses it before any handler sees it.
  */
 const ViewPathParam = WorkspaceIdParam.extend({
@@ -91,8 +90,8 @@ export function createViewsRouter(deps: ViewsRouterDeps): OpenAPIHono {
   // so whoever may run that skill may write one, and nobody else.
   // Reading is left open, since a document is a reading of the graph,
   // and anybody who may read the graph may read what was written out of it.
-  // The resource builder refuses an unknown kind or form the way `generate`
-  // does, so a bad request is still answered as a bad request.
+  // The resource builder refuses an unknown kind or form the way `generate` does,
+  // so a bad request is still answered as a bad request.
   router.on('POST', '/', requirePermission('skill.run', async (context) => {
     const workspace = await loadWorkspaceById(getWorkspaceId(context), deps.workspaceRepository)
     const body = GenerateViewRequest.parse(await context.req.json())
@@ -121,8 +120,7 @@ export function createViewsRouter(deps: ViewsRouterDeps): OpenAPIHono {
       form,
       subject,
       asked: asked ?? {},
-      // Attribute the run to whoever asked for it,
-      // since one workspace's run history is shared by every member.
+      // Attribute the run to whoever asked for it, since one workspace's run history is shared by every member.
       startedBy: getUserId(context),
       ...(callerToken ? { callerToken } : {}),
     })

@@ -75,8 +75,7 @@ describe('validateEvidence', () => {
         metadata: { sourceReferences: [], missingRoles: ['alpha' as SourceRole] },
       },
     ]))
-    // missingRoles clears the no-source rule,
-    // but completed-no-source still fires.
+    // missingRoles clears the no-source rule, but completed-no-source still fires.
     expect(issues.map(i => i.code)).toEqual(['evidence.completed-no-source'])
   })
 

@@ -64,8 +64,7 @@ function propertiesOf(node: Schema): Record<string, Schema> | undefined {
  *
  * `$ref` is followed because the gateway expands it,
  * so a component's description is what the model sees at the use site.
- * A cycle stops at the component that closes it,
- * which cannot add a path the walk has not already reported once.
+ * A cycle stops at the component that closes it, which cannot add a path the walk has not already reported once.
  */
 function undescribedFields(
   document: Surface,
@@ -195,8 +194,7 @@ function everyDescription(held: unknown): readonly string[] {
  *
  * A description serves a model choosing a call and a person reading the API,
  * so it states what the field is rather than instructing whoever holds it.
- * An imperative still describes the field,
- * so `Keep only nodes of these types` is fine.
+ * An imperative still describes the field, so `Keep only nodes of these types` is fine.
  */
 export function secondPersonIn(held: unknown): readonly string[] {
   const found = everyDescription(held).filter(prose => /\byou(?:r|rs|rself)?\b/i.test(prose))

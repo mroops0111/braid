@@ -35,8 +35,8 @@ export interface CoverageProjectionDeps {
   readonly modelRepository: ModelRepository
   readonly skillRegistry: SkillRegistry
   /**
-   * Asked whether a build is already running. Absent, the board reports none,
-   * which is right for a composition with no runner to start one.
+   * Asked whether a build is already running.
+   * Absent, the board reports none, which is right for a composition with no runner to start one.
    */
   readonly skillRunner?: Pick<SkillRunner, 'hasActiveRun'>
 }
@@ -63,10 +63,10 @@ export interface UnitFacts {
  * Nothing writes a board, so it holds no state its sources could contradict,
  * and every state is derived here rather than reported by the record.
  *
- * Ontology-neutral. Which sources yield units is the ontology's declaration,
- * carried in by `unitLister`, and the pipeline is read off its build skills.
- * The states are mechanical,
- * so swapping the ontology changes the stages on the cards and nothing else.
+ * Ontology-neutral.
+ * Which sources yield units is the ontology's declaration, carried in by `unitLister`,
+ * and the pipeline is read off its build skills.
+ * The states are mechanical, so swapping the ontology changes the stages on the cards and nothing else.
  */
 export class CoverageProjection {
   constructor(private readonly deps: CoverageProjectionDeps) {}
@@ -146,8 +146,7 @@ function buildCard(context: CardContext): CoverageCard {
   const pending = mine.filter(proposal => proposal.status === 'pending')
   const incorporated = latestIncorporation(mine, sourceId, path)
 
-  // Runs are attributed by what they were pointed at,
-  // never by what they went on to produce.
+  // Runs are attributed by what they were pointed at, never by what they went on to produce.
   // Reaching them through proposals would leave a run invisible until it proposed,
   // so a document being read right now would look untouched.
   const runs = context.records.filter(record => scopeCovers(runScope(record), path))
@@ -171,8 +170,7 @@ function buildCard(context: CardContext): CoverageCard {
     awaitingDecision: pending.length > 0 || asked.length > 0,
     failed: lastRun?.exitCode !== undefined && lastRun.exitCode !== 0,
     // Reading a unit is not incorporating it.
-    // A rejected proposal would leave the unit looking current,
-    // while the model reflects none of it,
+    // A rejected proposal would leave the unit looking current, while the model reflects none of it,
     // so what was last read is compared against what was last applied.
     // A document taken in before this was recorded has no version to compare,
     // and is left unjudged rather than accused of being stale.
@@ -183,8 +181,7 @@ function buildCard(context: CardContext): CoverageCard {
     // The graph is itself the evidence of incorporation.
     // A node citing this document is the model having taken it in,
     // whether or not the proposal recorded which version it read.
-    // Rest only on the stamp and a fully modelled workspace reads as empty,
-    // until every document has been read again,
+    // Rest only on the stamp and a fully modelled workspace reads as empty, until every document has been read again,
     // which is a worse lie than not knowing the version.
     covered: incorporated !== undefined || citing.length > 0,
   }
@@ -213,8 +210,7 @@ function keyOf(sourceId: string, path: string): string {
  * The one state a card shows, from everything true of it.
  *
  * Ordered by `COVERAGE_STATE_PRECEDENCE`, never by whichever check runs first.
- * A unit can be both changed at source and holding a conflict,
- * and it lands in the same column every time.
+ * A unit can be both changed at source and holding a conflict, and it lands in the same column every time.
  */
 function pick(facts: UnitFacts): CoverageState {
   for (const state of COVERAGE_STATE_PRECEDENCE) {
@@ -322,18 +318,14 @@ function citesUnit(node: GraphNode, sourceId: SourceId, path: string): boolean {
  * The ontology's own build pipeline, in the order it declared.
  *
  * A step is per-unit when one of its inputs is fed by the source provider,
- * which is how `extract` earns a place in the flow,
- * and how `reconcile` is known to work on the graph as a whole.
- * Read from the declaration rather than from a list of skill ids,
- * so a different ontology brings its own pipeline.
+ * which is how `extract` earns a place in the flow, and how `reconcile` is known to work on the graph as a whole.
+ * Read from the declaration rather than from a list of skill ids, so a different ontology brings its own pipeline.
  */
 /**
  * What a graph-wide step left waiting.
  *
- * Attributed by the run naming no document,
- * which is the same rule that keeps such a run off every card.
- * A per-document step carries nothing here,
- * since everything it produced already sits on the document it read.
+ * Attributed by the run naming no document, which is the same rule that keeps such a run off every card.
+ * A per-document step carries nothing here, since everything it produced already sits on the document it read.
  */
 function withGraphWideOutput(stage: CoverageStage, context: {
   proposals: readonly Proposal[]

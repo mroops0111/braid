@@ -12,8 +12,7 @@ export interface DefineAgentPluginInput {
   readonly kind: string
   /**
    * Optional Zod schema for the binding descriptor's `config` block.
-   * Defaults to a permissive object,
-   * so an author need not wire one just to satisfy `Plugin.configSchema`.
+   * Defaults to a permissive object, so an author need not wire one just to satisfy `Plugin.configSchema`.
    */
   readonly configSchema?: z.ZodTypeAny
   /**
@@ -35,10 +34,8 @@ export interface DefineAgentPluginInput {
  * Unlike storage and source-loader, the binding is constructed synchronously,
  * because the subprocess spawn happens lazily inside the returned `AgentBinding`.
  *
- * The builder still validates `kind`,
- * and supplies a permissive default `configSchema`,
- * so the registry can serialise the plugin,
- * without the author wiring an empty object themselves.
+ * The builder still validates `kind`, and supplies a permissive default `configSchema`,
+ * so the registry can serialise the plugin, without the author wiring an empty object themselves.
  */
 export function defineAgentPlugin(input: DefineAgentPluginInput): AgentPlugin {
   assertNonEmpty('agent kind', input.kind)

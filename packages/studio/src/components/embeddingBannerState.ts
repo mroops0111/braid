@@ -9,10 +9,8 @@ export type EmbeddingBannerState =
 /**
  * What the banner should say about the index.
  *
- * A failure outranks progress,
- * since a stalled rebuild is the thing a reader can act on.
- * Nothing behind means nothing to say,
- * which also covers a deployment with no embedding backend,
+ * A failure outranks progress, since a stalled rebuild is the thing a reader can act on.
+ * Nothing behind means nothing to say, which also covers a deployment with no embedding backend,
  * since that reports no nodes and none behind.
  */
 export function embeddingBannerState(progress: EmbeddingProgress): EmbeddingBannerState {

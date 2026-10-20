@@ -46,8 +46,7 @@ describe('emphasizeAddedFor', () => {
     expect(emphasizeAddedFor(source(drawn, [], diffOf(['n0', 'n1'])))).toBe(true)
   })
 
-  // A fresh extraction touches nearly everything,
-  // and a green border on every node would drown the type colour.
+  // A fresh extraction touches nearly everything, and a green border on every node would drown the type colour.
   it('leaves a change that touches most of what is drawn unemphasised', () => {
     const drawn = ['a', 'b', 'c']
     expect(emphasizeAddedFor(source(drawn, [], diffOf(drawn)))).toBe(false)

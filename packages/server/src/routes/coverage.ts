@@ -47,10 +47,8 @@ export function createCoverageRouter(deps: CoverageRouterDeps): OpenAPIHono {
  * The board as somebody who may not read the queue sees it.
  *
  * Counting what is waiting is still reading the queue,
- * so the ids come off here rather than the surface being trusted
- * not to render them.
- * Every state stays, since what a document is still waiting on
- * is the board's whole point, and it names nobody's work.
+ * so the ids come off here rather than the surface being trusted not to render them.
+ * Every state stays, since what a document is still waiting on is the board's whole point, and it names nobody's work.
  */
 function withoutHandoffs(board: CoverageBoardType): CoverageBoardType {
   return {

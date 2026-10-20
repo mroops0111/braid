@@ -52,10 +52,8 @@ export interface HITLServiceDeps {
   workspaceService: WorkspaceService
   clock: Clock
   /**
-   * All three needed to stamp which source units a proposal came from,
-   * and at which version.
-   * Absent, the proposal carries none,
-   * and coverage falls back to reading the run's own arguments.
+   * All three needed to stamp which source units a proposal came from, and at which version.
+   * Absent, the proposal carries none, and coverage falls back to reading the run's own arguments.
    */
   runRepository?: RunRepository
   unitLister?: UnitLister
@@ -64,7 +62,7 @@ export interface HITLServiceDeps {
   // Both required together. Absence makes the commit hook a no-op.
   history?: WorkspaceHistory
   modelSerializer?: ModelSerializer
-  // Inject so HistoryService.restore can share the same exclusion domain.
+  /** Inject so HistoryService.restore can share the same exclusion domain. */
   workspaceLock?: WorkspaceLock
   /**
    * Looks up displayName + email to snapshot into git author at commit time.
@@ -86,18 +84,15 @@ export class HITLService {
   /**
    * The source units the run that produced this was pointed at.
    *
-   * Read from the run's own arguments and the observation store,
-   * never from the caller.
+   * Read from the run's own arguments and the observation store, never from the caller.
    * A proposal naming its own scope could name a document it never read,
-   * and coverage would then rest on the model's account of itself,
-   * rather than on what the server watched it do.
+   * and coverage would then rest on the model's account of itself, rather than on what the server watched it do.
    */
   /**
    * What a run recorded about itself, and the workspace it ran in.
    *
    * Both are what a handoff is filled in from, so they are read together.
-   * A skill naming itself, or the documents it read,
-   * is a field it can get wrong on every call,
+   * A skill naming itself, or the documents it read, is a field it can get wrong on every call,
    * while the record already holds the answer.
    */
   private async runBehind(
@@ -117,8 +112,7 @@ export class HITLService {
       return []
     const { workspace, record } = run
     const named = sourceUnitsForRun(runScope(record), await unitLister(workspace))
-    // Hashed here rather than read from the observation store,
-    // which records what a completed run saw,
+    // Hashed here rather than read from the observation store, which records what a completed run saw,
     // and so is either absent or one version behind when a proposal is filed.
     return Promise.all(named.map(async unit => ({
       sourceId: SourceId.parse(unit.sourceId),
@@ -133,8 +127,7 @@ export class HITLService {
    * Checked against the records rather than against anything held in memory,
    * because a process restart must not let a run submit twice.
    * Which rule applies is the kind's own,
-   * so a new kind of output brings a rule with it,
-   * rather than another arm of a conditional here.
+   * so a new kind of output brings a rule with it, rather than another arm of a conditional here.
    */
   private async assertRunMaySubmit(
     workspaceId: WorkspaceId,
@@ -161,10 +154,8 @@ export class HITLService {
    * Whether a conversation will be parked on this answer.
    *
    * A watched run stops and waits, so answering carries it on.
-   * An unattended one has nobody to answer it in time,
-   * so its question stands alone from the moment it is asked.
-   * Read from the run's own record, which outlives the process,
-   * rather than from anything the asker says about itself.
+   * An unattended one has nobody to answer it in time, so its question stands alone from the moment it is asked.
+   * Read from the run's own record, which outlives the process, rather than from anything the asker says about itself.
    */
   private async answerModeFor(
     workspaceId: WorkspaceId,
@@ -226,7 +217,7 @@ export class HITLService {
     })
   }
 
-  // Candidates are only validated at answer time, since each picks a different op set.
+  /** Candidates are only validated at answer time, since each picks a different op set. */
   async submitClarification(draft: ClarificationCreate & { submitterId?: UserId, skillRunId?: SkillRunId }): Promise<Clarification> {
     await this.assertRunMaySubmit(draft.workspaceId, draft.skillRunId, clarificationSubmission)
     const answerMode = await this.answerModeFor(draft.workspaceId, draft.skillRunId)
@@ -335,7 +326,7 @@ export class HITLService {
     })
   }
 
-  // `note` is free-text saved on the answer commit subject.
+  /** `note` is free-text saved on the answer commit subject. */
   async answerClarification(options: {
     clarificationId: ClarificationId
     selection:
@@ -382,7 +373,7 @@ export class HITLService {
     })
   }
 
-  // No graph mutation here. The Proposal apply path (when there is one) handled that.
+  /** No graph mutation here. The Proposal apply path (when there is one) handled that. */
   async markClarificationApplied(
     clarificationId: ClarificationId,
     userId: UserId,
@@ -413,8 +404,7 @@ export class HITLService {
   /**
    * Stop a run waiting on this question, without giving the question up.
    *
-   * The run carries on without the answer,
-   * so the question stops being an interrupt and stands on its own.
+   * The run carries on without the answer, so the question stops being an interrupt and stands on its own.
    * It is still pending, because it still wants answering,
    * and the step that reads answered ones will pick it up eventually.
    */
@@ -488,8 +478,7 @@ export class HITLService {
    *
    * A run often proposes new nodes and asks about them in the same breath,
    * so answering before applying fails on a node that does exist, just not yet.
-   * A bare id leaves the reviewer to work that out,
-   * and they have no way to see which proposal holds it.
+   * A bare id leaves the reviewer to work that out, and they have no way to see which proposal holds it.
    */
   private async blameUnappliedProposal(
     workspaceId: WorkspaceId,

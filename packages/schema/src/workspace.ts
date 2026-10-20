@@ -13,7 +13,7 @@ import { StorageDescriptor } from './storage.js'
 export const WorkspaceRole = z.enum(['owner', 'maintainer', 'guest'])
 export type WorkspaceRole = z.infer<typeof WorkspaceRole>
 
-/** Per-member skill override: allow opens, deny closes, absent inherits the manifest. */
+/** Per-member skill override, where allow opens, deny closes, and absent inherits the manifest. */
 export const SkillPermission = z.enum(['allow', 'deny'])
 export type SkillPermission = z.infer<typeof SkillPermission>
 
@@ -30,14 +30,11 @@ export const ProductManifest = z.object({
   /**
    * The role anyone who can sign in takes here without being invited.
    *
-   * The server already decides who may sign in at all,
-   * so this only says whether the workspace takes them.
+   * The server already decides who may sign in at all, so this only says whether the workspace takes them.
    * Absent, which is the default, admits nobody.
    *
-   * A literal rather than the role enum,
-   * because signing in must not hand out write access.
-   * Widening it later is a change someone has to make on purpose,
-   * rather than a value an owner can already reach for.
+   * A literal rather than the role enum, because signing in must not hand out write access.
+   * Widening it later is a change someone has to make on purpose, rather than a value an owner can already reach for.
    */
   autoJoinAs: z.literal('guest').optional(),
   version: z.string().default('0.0.0'),
@@ -51,8 +48,10 @@ export const ProductManifest = z.object({
 })
 export type ProductManifest = z.infer<typeof ProductManifest>
 
-// `.extend` strips the defaults, zod 4 keeps defaults through `.partial()`.
-// A patch must leave absent fields absent, not reset them to their defaults.
+/**
+ * `.extend` strips the defaults, zod 4 keeps defaults through `.partial()`.
+ * A patch must leave absent fields absent, not reset them to their defaults.
+ */
 export const ProductManifestUpdate = ProductManifest.partial().extend({
   version: z.string().optional(),
   ontologyId: OntologyId.optional(),
@@ -61,7 +60,7 @@ export const ProductManifestUpdate = ProductManifest.partial().extend({
 })
 export type ProductManifestUpdate = z.infer<typeof ProductManifestUpdate>
 
-/** Scaffold subset: user gives name/sources/mcpServers, server defaults the rest. */
+/** Scaffold subset, where the user gives name, sources, and mcpServers, and the server defaults the rest. */
 export const ProductManifestCreate = z.object({
   name: z.string().min(1),
   version: z.string().optional(),

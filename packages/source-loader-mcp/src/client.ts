@@ -13,16 +13,14 @@ export interface McpSession {
 
 /**
  * Opens a session.
- * The seam exists so a test drives the loader without a server,
- * the same way the github loader takes a `fetch`.
+ * The seam exists so a test drives the loader without a server, the same way the github loader takes a `fetch`.
  */
 export type ConnectFn = (url: string, headers: Record<string, string>) => Promise<McpSession>
 
 /**
  * Connect over streamable HTTP.
  *
- * The gateway is a process the operator runs,
- * so the loader speaks to it and never manages its lifetime.
+ * The gateway is a process the operator runs, so the loader speaks to it and never manages its lifetime.
  * A stdio transport would put spawning, timeouts,
  * and orphan handling inside the server for a case nobody has asked for.
  */
@@ -44,9 +42,8 @@ export const connectOverHttp: ConnectFn = async (url, headers) => {
 /**
  * The payload of one reply.
  *
- * A shaped object arrives as `structuredContent`,
- * which is the path a tool built for this takes. Anything else arrives as text,
- * so the first text block is parsed instead,
+ * A shaped object arrives as `structuredContent`, which is the path a tool built for this takes.
+ * Anything else arrives as text, so the first text block is parsed instead,
  * which is how a top-level array reaches us at all.
  */
 export function payloadOf(result: McpToolResult): unknown {

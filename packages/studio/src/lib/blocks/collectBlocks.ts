@@ -4,8 +4,7 @@ import type { EmittedBlock, SkillEvent } from '@braidhq/schema'
  * The blocks a run has rendered, in the order they arrived.
  *
  * No view-framework imports here on purpose.
- * A surface decides whether this sequence becomes a scrolling answer,
- * a board, or a printed page,
+ * A surface decides whether this sequence becomes a scrolling answer, a board, or a printed page,
  * and a second consumer of the stream should take this file as it stands.
  */
 export function collectBlocks(events: readonly SkillEvent[]): readonly EmittedBlock[] {
@@ -34,8 +33,7 @@ export interface BlockTurn {
 /**
  * The same blocks, split at each question the reader asked.
  *
- * A conversation concatenates its turns,
- * so without this a follow-up's blocks stack under the first question,
+ * A conversation concatenates its turns, so without this a follow-up's blocks stack under the first question,
  * and stop being attributable.
  *
  * A correction is the same turn seen through a second process,

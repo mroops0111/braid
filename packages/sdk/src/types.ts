@@ -1,12 +1,10 @@
 /**
  * Reference to a SKILL.md file shipped alongside a plugin.
  * The plugin's `define*` builder records these on the Plugin instance,
- * and at runtime FsSkillRegistry walks the registered plugins,
- * exposing their skills under the `plugin` origin.
+ * and at runtime FsSkillRegistry walks the registered plugins, exposing their skills under the `plugin` origin.
  *
  * Letting any Plugin type declare skills, not just Ontology,
- * keeps the framework open for skills tied to a source loader,
- * a validator, or a future plugin kind,
+ * keeps the framework open for skills tied to a source loader, a validator, or a future plugin kind,
  * without changing the base interface again.
  */
 export interface PluginSkillRef {

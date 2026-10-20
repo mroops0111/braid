@@ -4,11 +4,9 @@ import { ClarificationId, CommitSha, ProposalId, SkillId, SkillRunId, SourceId, 
 import { ReactorCycleId } from './reactor.js'
 
 // Workspace-scoped runtime notifications, the SSE contract between server and Studio.
-// Studio's useWorkspaceEvents hook reads these to invalidate react-query caches,
-// the moment a server mutation happens.
+// Studio's useWorkspaceEvents hook reads these to invalidate react-query caches, the moment a server mutation happens.
 // Not persisted and not replayable, so a restart drops anything in flight.
-// Keep payloads small, only the identifiers a subscriber needs,
-// to pick which query keys to drop.
+// Keep payloads small, only the identifiers a subscriber needs, to pick which query keys to drop.
 // Events are signals, not deliveries, the fresh value lives behind the list and detail endpoints.
 
 // The envelope every event carries. Each type below extends it with its own fields.
@@ -37,8 +35,7 @@ export const ProposalCreatedEvent = WorkspaceEventBase.extend({
   proposalId: ProposalId,
   /**
    * The run that produced it, when a skill did.
-   * A subscriber acting on its own output needs this to tell it apart,
-   * from anything else created while it was running,
+   * A subscriber acting on its own output needs this to tell it apart, from anything else created while it was running,
    * since the bus is workspace-wide.
    */
   skillRunId: SkillRunId.optional(),
@@ -219,8 +216,8 @@ export const ReactorDispatchedEvent = WorkspaceEventBase.extend({
 export type ReactorDispatchedEvent = z.infer<typeof ReactorDispatchedEvent>
 
 /**
- * The full reactor cycle is over. checkpointRan distinguishes the "0 changed units,
- * no checkpoint needed" case from the normal flow.
+ * The full reactor cycle is over.
+ * checkpointRan distinguishes the "0 changed units, no checkpoint needed" case from the normal flow.
  */
 export const ReactorCompletedEvent = WorkspaceEventBase.extend({
   type: z.literal('reactor.completed'),
@@ -266,8 +263,7 @@ export const ReactorUnitCompletedEvent = WorkspaceEventBase.extend({
 export type ReactorUnitCompletedEvent = z.infer<typeof ReactorUnitCompletedEvent>
 
 /**
- * Checkpoint skill about to start,
- * firing only when at least one per-unit dispatch succeeded,
+ * Checkpoint skill about to start, firing only when at least one per-unit dispatch succeeded,
  * and the ontology declares a checkpoint binding.
  */
 export const ReactorCheckpointStartedEvent = WorkspaceEventBase.extend({
@@ -279,7 +275,8 @@ export const ReactorCheckpointStartedEvent = WorkspaceEventBase.extend({
 export type ReactorCheckpointStartedEvent = z.infer<typeof ReactorCheckpointStartedEvent>
 
 /**
- * Checkpoint skill finished. status='skipped' means the cycle chose not to run the checkpoint,
+ * Checkpoint skill finished.
+ * status='skipped' means the cycle chose not to run the checkpoint,
  * kept so the Activity timeline always has a terminal entry for the checkpoint row.
  */
 export const ReactorCheckpointCompletedEvent = WorkspaceEventBase.extend({

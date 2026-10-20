@@ -1,8 +1,7 @@
 import type { WorkspaceId } from '@braidhq/schema'
 
 /**
- * Per-workspace serialisation primitive,
- * at most one task executes per workspace at a time.
+ * Per-workspace serialisation primitive, at most one task executes per workspace at a time.
  * Built as a promise chain keyed by workspaceId, so workspaces never block.
  *
  * Used by HITLService to make the load, validate, write, save chain atomic.
@@ -17,8 +16,7 @@ export class WorkspaceLock {
     // `.then(task, task)` runs task whether the predecessor resolved or rejected,
     // so one workspace's failure can't deadlock the next caller.
     const result = previousTail.then(task, task)
-    // Store an error-swallowing tail,
-    // so the next caller doesn't see this attempt's rejection.
+    // Store an error-swallowing tail, so the next caller doesn't see this attempt's rejection.
     // Each call owns its own error.
     const tail = result.then(noop, noop)
     this.chains.set(workspaceId, tail)

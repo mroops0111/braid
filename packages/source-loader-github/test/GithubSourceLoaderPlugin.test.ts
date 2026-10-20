@@ -50,10 +50,10 @@ interface MockRouter {
   comments?: Record<number, readonly MockComment[]>
   pageSize?: number
   /**
-   * Per-issue mapping of "merged PRs linked to this issue". When
-   * omitted, the mock defaults to one merged PR per issue so existing
-   * happy-path tests don't need to spell out provenance. Tests that
-   * exercise the filter pass an explicit map.
+   * Per-issue mapping of "merged PRs linked to this issue".
+   * When omitted, the mock defaults to one merged PR per issue,
+   * so existing happy-path tests don't need to spell out provenance.
+   * Tests that exercise the filter pass an explicit map.
    */
   linkedPRs?: Record<number, readonly MockClosingPR[]>
 }
@@ -100,10 +100,9 @@ function buildMockFetch(router: MockRouter, recorder?: { calls: string[], lastHe
       const state = parsed.searchParams.get('state') ?? 'all'
       const page = Number.parseInt(parsed.searchParams.get('page') ?? '1', 10)
       const pageSize = router.pageSize ?? 100
-      // Mock issues default to `state: closed` so the realized-intent
-      // filter (closed + linked merged PR) lets them through. Tests
-      // that exercise the open-issue rejection path set `state: 'open'`
-      // explicitly on the fixture.
+      // Mock issues default to `state: closed`,
+      // so the realized-intent filter (closed + linked merged PR) lets them through.
+      // Tests that exercise the open-issue rejection path set `state: 'open'` explicitly on the fixture.
       let filtered = router.issues.map(i => ({ ...i, state: i.state ?? 'closed' }))
       if (since)
         filtered = filtered.filter(i => i.updated_at > since)
@@ -220,8 +219,7 @@ describe('GithubLoader', () => {
     const loader = makeLoader({ fetchFn: buildMockFetch(router) })
     await loader.provision({ owner: 'o', repo: 'r', includePullRequests: true }, dest, ctx)
     // PR (#2) is filtered out regardless of the deprecated flag.
-    // Only #1 survives, and it passes the realized-intent gate,
-    // via the mock's default "one merged PR per issue" stub.
+    // Only #1 survives, and it passes the realized-intent gate, via the mock's default "one merged PR per issue" stub.
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md'])
   })
 
@@ -377,7 +375,7 @@ describe('GithubLoader', () => {
   })
 
   it('sync deletes on-disk files for issues that came back via cursor but no longer pass the realized-intent filter', async () => {
-    // Initial state: two closed issues, both with linked merged PRs.
+    // The initial state has two closed issues, both with linked merged PRs.
     const initial: MockRouter = {
       issues: [
         { number: 1, title: 'kept', state: 'closed', created_at: 't', updated_at: '2026-01-01T00:00:00Z' },
@@ -392,8 +390,7 @@ describe('GithubLoader', () => {
     await loader1.provision({ owner: 'o', repo: 'r' }, dest, ctx)
     expect((await readdir(join(dest, 'issues'))).sort()).toEqual(['1.md', '2.md'])
 
-    // Issue #2 gets re-opened, so `since=` returns it,
-    // the filter drops it because its state is not closed,
+    // Issue #2 gets re-opened, so `since=` returns it, the filter drops it because its state is not closed,
     // and the loader must delete the orphan file.
     const after: MockRouter = {
       issues: [

@@ -17,8 +17,8 @@ export interface McpGatewayProcessDeps {
   readonly configPath: string
   readonly config: McpGatewayConfigDocument
   /**
-   * What `uvx` resolves the gateway from. Carries the `oidc` extra,
-   * which is what token_exchange needs,
+   * What `uvx` resolves the gateway from.
+   * Carries the `oidc` extra, which is what token_exchange needs,
    * and lets a deployment pin a version or point at a pre-release.
    */
   readonly gatewayPackage: string
@@ -28,13 +28,11 @@ export interface McpGatewayProcessDeps {
 }
 
 /**
- * Supervises the long-lived `openapi-mcp-gateway`,
- * which serves Braid's read-only MCP endpoint over streamable-http.
+ * Supervises the long-lived `openapi-mcp-gateway`, which serves Braid's read-only MCP endpoint over streamable-http.
  *
  * Distinct from the per-run gateway in `SubprocessSkillRunner`,
  * which speaks stdio and lives only as long as one agent invocation.
- * This one outlives every run,
- * because the caller is a person's own MCP client, not a skill Braid spawned.
+ * This one outlives every run, because the caller is a person's own MCP client, not a skill Braid spawned.
  */
 export class McpGatewayProcess {
   private child: ChildProcess | null = null
@@ -45,8 +43,7 @@ export class McpGatewayProcess {
 
   /**
    * Writes the config, then supervises the process in the background.
-   * Resolves once the first spawn is under way,
-   * so boot is not held behind a service the server does not depend on.
+   * Resolves once the first spawn is under way, so boot is not held behind a service the server does not depend on.
    */
   async start(): Promise<void> {
     await writeFile(this.deps.configPath, stringify(this.deps.config), 'utf8')
@@ -82,8 +79,7 @@ export class McpGatewayProcess {
       const child = spawnFn(
         this.deps.uvxBin,
         ['--from', this.deps.gatewayPackage, 'openapi-mcp-gateway', '--config', this.deps.configPath],
-        // The child inherits this process's env,
-        // which is where the config's `${...}` credential references resolve.
+        // The child inherits this process's env, which is where the config's `${...}` credential references resolve.
         // Keeping them there leaves the file readable without being a secret.
         { stdio: ['ignore', 'inherit', 'inherit'] },
       )

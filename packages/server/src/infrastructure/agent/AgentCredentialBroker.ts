@@ -6,10 +6,8 @@ import { randomUUID } from 'node:crypto'
  * Which account a run resolved to, so a caller can say why it was refused.
  *
  * `none` is a refusal rather than a fallback.
- * A deployment with no server credential, and an author who saved none,
- * has nothing to spend.
- * Failing at spawn names the settings page,
- * where an upstream 401 names nothing the reader can act on.
+ * A deployment with no server credential, and an author who saved none, has nothing to spend.
+ * Failing at spawn names the settings page, where an upstream 401 names nothing the reader can act on.
  */
 export type CredentialSource = 'own' | 'server' | 'none'
 
@@ -37,13 +35,10 @@ interface Lent {
  * Lends a run a stand-in for whichever credential it resolved to.
  *
  * The agent never holds the real one.
- * It receives an address on this server,
- * and a token that means nothing anywhere else and dies with the run.
- * A planted skill reads the whole environment,
- * and leaves with a string `api.anthropic.com` rejects.
+ * It receives an address on this server, and a token that means nothing anywhere else and dies with the run.
+ * A planted skill reads the whole environment, and leaves with a string `api.anthropic.com` rejects.
  *
- * The lease lives as long as the run and is released with it,
- * so a token outliving its run opens nothing.
+ * The lease lives as long as the run and is released with it, so a token outliving its run opens nothing.
  */
 export class AgentCredentialBroker {
   private readonly byToken = new Map<string, Lent>()
@@ -54,10 +49,8 @@ export class AgentCredentialBroker {
   /**
    * Resolves the author's credential, then the server's, then refuses.
    *
-   * A deployment holding a shared credential forces nobody to save one,
-   * which is deliberate.
-   * The settings page says which of the two a run would spend,
-   * so the choice stays visible rather than silent.
+   * A deployment holding a shared credential forces nobody to save one, which is deliberate.
+   * The settings page says which of the two a run would spend, so the choice stays visible rather than silent.
    */
   async lease(runId: SkillRunId, userId: UserId, kind: AgentKind): Promise<BrokerLease> {
     const source = await this.resolve(userId, kind)
@@ -87,8 +80,7 @@ export class AgentCredentialBroker {
    * The credential a lent token stands for, or undefined once released.
    *
    * The listener asks this per request rather than holding the credential,
-   * so a revoked run stops being spendable at the next call,
-   * rather than at the next spawn.
+   * so a revoked run stops being spendable at the next call, rather than at the next spawn.
    */
   async redeem(token: string): Promise<string | undefined> {
     const lent = this.byToken.get(token)

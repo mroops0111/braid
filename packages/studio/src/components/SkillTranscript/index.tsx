@@ -19,10 +19,8 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
   const items = groupTranscript(events)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to the bottom when new events arrive,
-  // so the latest output is always visible.
-  // We compare scrollHeight to scrollTop+clientHeight,
-  // to avoid stealing scroll when the user has scrolled up to read.
+  // Auto-scroll to the bottom when new events arrive, so the latest output is always visible.
+  // We compare scrollHeight to scrollTop+clientHeight, to avoid stealing scroll when the user has scrolled up to read.
   useEffect(() => {
     const node = containerRef.current
     if (!node)
@@ -63,10 +61,8 @@ export function SkillTranscript({ events, error, running }: SkillTranscriptProps
 /**
  * What a run was asked for.
  *
- * The same box whether it arrives as the log's own start event,
- * or as the user message the protocol carries it in,
- * because a reader is looking at one thing,
- * and should not be able to tell which door it came through.
+ * The same box whether it arrives as the log's own start event, or as the user message the protocol carries it in,
+ * because a reader is looking at one thing, and should not be able to tell which door it came through.
  */
 function Prompt({ text, resumed }: { text: string, resumed: boolean }) {
   const { t } = useTranslation()
@@ -127,8 +123,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
       )
     case 'thinking':
       // The model's reasoning.
-      // Collapsed by default so it never buries the actual output,
-      // but available when a reviewer wants the why.
+      // Collapsed by default so it never buries the actual output, but available when a reviewer wants the why.
       return (
         <details className="my-1 font-sans text-muted-foreground/70">
           <summary className="cursor-pointer select-none text-2xs font-semibold uppercase tracking-wider">
@@ -148,8 +143,7 @@ function TranscriptLine({ event }: { event: SkillEvent }) {
         </div>
       )
     case 'rate-limit': {
-      // A warning carries nothing the reader can act on,
-      // and it lands on almost every run near the limit.
+      // A warning carries nothing the reader can act on, and it lands on almost every run near the limit.
       if (!rateLimitHeld(event.status))
         return null
       return (

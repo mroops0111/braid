@@ -3,10 +3,8 @@ import type { AgentKind, UserId } from '@braidhq/schema'
 /**
  * Where a person's own agent credential is kept.
  *
- * A port rather than a concrete store,
- * because protecting it at rest is a deployment's decision.
- * A self-hosted install encrypts to a file, a hosted one reaches a vault,
- * and neither changes what a run asks for.
+ * A port rather than a concrete store, because protecting it at rest is a deployment's decision.
+ * A self-hosted install encrypts to a file, a hosted one reaches a vault, and neither changes what a run asks for.
  *
  * No read returns the credential to a caller.
  * A run gets one spent on its behalf, never handed over,

@@ -54,8 +54,8 @@ describe('FsSkillRegistry', () => {
     const { workspace, root } = await makeWorkspace()
     await writeSkillFile(join(root, 'skills'), 'ask', 'ask-custom')
 
-    // A workspace skill in dir `ask` composes to `workspace:ask`, distinct
-    // from the builtin `braid:ask`. Both coexist under their own namespace.
+    // A workspace skill in dir `ask` composes to `workspace:ask`, distinct from the builtin `braid:ask`.
+    // Both coexist under their own namespace.
     const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot })
     const custom = await registry.get(workspace, 'workspace:ask' as SkillId)
     expect(custom.origin).toBe('workspace')
@@ -71,8 +71,7 @@ describe('FsSkillRegistry', () => {
 
     const { workspace, root } = await makeWorkspace()
     // The extension dir is the filesystem-safe `<namespace>-<verb>` form,
-    // whose first hyphen maps to the id's colon: `braid-extract` targets
-    // `braid:extract`.
+    // whose first hyphen maps to the id's colon: `braid-extract` targets `braid:extract`.
     const extensionDir = join(root, 'skill-extensions', 'braid-extract')
     await mkdir(extensionDir, { recursive: true })
     await writeFile(join(extensionDir, 'EXTEND.md'), '# extra context', 'utf-8')
@@ -120,9 +119,8 @@ describe('FsSkillRegistry', () => {
       const manifest = await registry.get(workspace, 'redoc:design' as SkillId)
       expect(manifest.origin).toBe('plugin')
       expect(manifest.frontmatter.name).toBe('design')
-      // pluginId travels with the manifest so Studio can label the
-      // sidebar badge with the contributing plugin instead of a generic
-      // "plugin" string.
+      // pluginId travels with the manifest,
+      // so Studio can label the sidebar badge with the contributing plugin instead of a generic "plugin" string.
       expect(manifest.toData().pluginId).toBe('plugin.redoc')
     })
 
@@ -139,8 +137,9 @@ describe('FsSkillRegistry', () => {
       ))
 
       const { workspace, root } = await makeWorkspace()
-      // A workspace skill in dir `design` composes to `workspace:design`, a
-      // distinct id from the plugin's `redoc:design`. Both coexist.
+      // A workspace skill in dir `design` composes to `workspace:design`,
+      // a distinct id from the plugin's `redoc:design`.
+      // Both coexist.
       await writeSkillFile(join(root, 'skills'), 'design', 'design-local')
 
       const registry = new FsSkillRegistry({ builtinSkillsRoot: builtinRoot, pluginRegistry })
@@ -173,9 +172,8 @@ describe('FsSkillRegistry', () => {
       const builtinRoot = (await mkdtemp(join(tmpdir(), 'braid-builtin-'))) as AbsolutePath
       const skillDir = join(builtinRoot, 'malformed')
       await mkdir(skillDir, { recursive: true })
-      // Has frontmatter and a Role section, but is missing Procedure (and the
-      // other common required sections). The validator's hard-fail should
-      // surface as a thrown error citing the offending path.
+      // Has frontmatter and a Role section, but is missing Procedure (and the other common required sections).
+      // The validator's hard-fail should surface as a thrown error citing the offending path.
       await writeFile(
         join(skillDir, 'SKILL.md'),
         `---\nname: malformed\ndescription: missing required sections\n---\n\n## Role\n\nbody.\n`,

@@ -10,8 +10,7 @@ import { workspaceSkillExtensionsDir, workspaceSkillsDir } from '../_shared/path
 
 /**
  * Namespace for skills and reference docs shipped by the framework itself.
- * Builtin skills invoke as `braid:<verb>`,
- * and core's shared reference docs mount under the same namespace.
+ * Builtin skills invoke as `braid:<verb>`, and core's shared reference docs mount under the same namespace.
  */
 export const BUILTIN_SKILL_NAMESPACE = 'braid'
 
@@ -23,8 +22,8 @@ interface DirentLike {
 export interface FsSkillRegistryOptions {
   readonly builtinSkillsRoot: AbsolutePath
   /**
-   * Optional plugin registry. When provided, plugin-declared skills mount,
-   * between builtins and workspace skills, under the `plugin` origin.
+   * Optional plugin registry.
+   * When provided, plugin-declared skills mount, between builtins and workspace skills, under the `plugin` origin.
    * Without it, as in unit tests that compose no registry, only builtin,
    * workspace, and extension origins are discovered.
    */
@@ -45,9 +44,9 @@ export class FsSkillRegistry implements SkillRegistry {
       AbsolutePathSchema.parse(workspaceSkillExtensionsDir(workspace.rootPath)),
     )
 
-    // Precedence, later wins: builtin < plugin < workspace.
-    // Extensions don't override. They attach an EXTEND.md path,
-    // and the agent binding points claude at that file at run time.
+    // Precedence runs builtin < plugin < workspace, and the later one wins.
+    // Extensions don't override.
+    // They attach an EXTEND.md path, and the agent binding points claude at that file at run time.
     const manifests = new Map<SkillId, SkillManifest>()
     for (const manifest of builtins) manifests.set(manifest.id, manifest)
     for (const manifest of pluginSkills) manifests.set(manifest.id, manifest)
@@ -84,8 +83,8 @@ export class FsSkillRegistry implements SkillRegistry {
       const frontmatter = await this.readSkillFrontmatter(skillFile)
       if (!frontmatter)
         continue
-      // The directory is the bare verb. Namespace it by origin,
-      // builtins under `braid`, workspace skills under `workspace`,
+      // The directory is the bare verb.
+      // Namespace it by origin, builtins under `braid`, workspace skills under `workspace`,
       // so the id matches the plugin the agent binding stages it as.
       const namespace = origin === 'builtin' ? BUILTIN_SKILL_NAMESPACE : 'workspace'
       manifests.push(new SkillManifest({
@@ -99,12 +98,9 @@ export class FsSkillRegistry implements SkillRegistry {
   }
 
   // Resolve every PluginSkillRef in the registry to a parsed SkillManifest.
-  // Each ref's `directory` is resolved to an absolute path via fileURLToPath,
-  // then its `SKILL.md` is read and parsed.
-  // A file missing at such a path,
-  // counts as an error, never a silent skip.
-  // A plugin shipping a broken ref,
-  // earns a loud startup failure, not a mysteriously absent skill.
+  // Each ref's `directory` is resolved to an absolute path via fileURLToPath, then its `SKILL.md` is read and parsed.
+  // A file missing at such a path, counts as an error, never a silent skip.
+  // A plugin shipping a broken ref, earns a loud startup failure, not a mysteriously absent skill.
   private async scanPluginSkills(): Promise<readonly SkillManifest[]> {
     const registry = this.options.pluginRegistry
     if (!registry)
@@ -138,8 +134,7 @@ export class FsSkillRegistry implements SkillRegistry {
       try {
         await stat(extendPath)
         // The extension dir is `<namespace>-<verb>`, filesystem-safe.
-        // The first hyphen maps back to the id's `:` separator,
-        // so `ddd-extract` targets `ddd:extract`,
+        // The first hyphen maps back to the id's `:` separator, so `ddd-extract` targets `ddd:extract`,
         // and `doc-reference` targets `doc:reference`.
         const skillId = SkillIdSchema.parse(entry.name.replace('-', ':'))
         results.push({ id: skillId, path: extendPath })
@@ -165,8 +160,7 @@ export class FsSkillRegistry implements SkillRegistry {
     const { frontmatter: raw, body } = parseMarkdownFrontmatter<unknown>(content)
     const frontmatter = SkillFrontmatterSchema.parse(raw)
 
-    // Structural contract: SKILL.md must declare the required H2 sections,
-    // per its `braid.category`.
+    // The structural contract is that SKILL.md declares the H2 sections its `braid.category` requires.
     // The validator is hard-fail.
     // A broken skill never lands silently in the workspace list.
     // Were `## Procedure` absent, the skill would burn an entire run,

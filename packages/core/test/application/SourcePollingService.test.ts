@@ -22,8 +22,7 @@ function managed(id: SourceId, maxStalenessMs = BUDGET_MS) {
 }
 
 /**
- * Stands in for `SystemScheduler` so a test advances the loop deliberately,
- * rather than sleeping on wall-clock timers.
+ * Stands in for `SystemScheduler` so a test advances the loop deliberately, rather than sleeping on wall-clock timers.
  */
 class ManualScheduler {
   readonly pending: { delayMs: number, task: () => void }[] = []

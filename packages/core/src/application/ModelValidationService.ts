@@ -25,8 +25,7 @@ export interface ModelValidationServiceDeps {
  *
  * There is no separate `Validator` plugin axis.
  * If user code needs cross-cutting rules in the future,
- * it adds them as a domain service that `HITLService` calls around this one,
- * not as a plugin.
+ * it adds them as a domain service that `HITLService` calls around this one, not as a plugin.
  */
 export class ModelValidationService {
   constructor(private readonly deps: ModelValidationServiceDeps) {}
@@ -48,13 +47,10 @@ export class ModelValidationService {
 
   /**
    * Pre-apply check used by `GET /proposals/:id/validate`.
-   * Runs the ops through `Model.preview` to get the projected next snapshot,
-   * then delegates to `validate`.
+   * Runs the ops through `Model.preview` to get the projected next snapshot, then delegates to `validate`.
    * If preview itself rejects, e.g. removeNode of a non-existent node,
-   * we convert that into a structural validation issue,
-   * rather than letting the route 404.
-   * The UI needs a single shape it can render,
-   * and a structural mismatch is what the user wants to see anyway.
+   * we convert that into a structural validation issue, rather than letting the route 404.
+   * The UI needs a single shape it can render, and a structural mismatch is what the user wants to see anyway.
    */
   async validateOperations(
     snapshot: ModelSnapshot,

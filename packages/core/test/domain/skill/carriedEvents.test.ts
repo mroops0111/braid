@@ -20,8 +20,7 @@ describe('carriedEvents', () => {
       .toEqual(['started', 'message', 'tool-call', 'tool-result'])
   })
 
-  // Copying these would have the new run report the earlier ending,
-  // and bill its spend a second time.
+  // Copying these would have the new run report the earlier ending, and bill its spend a second time.
   it('leaves the earlier process its own bookkeeping', () => {
     const types = carriedEvents(THREAD).map(event => event.type)
     expect(types).not.toContain('completed')

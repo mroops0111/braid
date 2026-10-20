@@ -32,8 +32,7 @@ export const ask = {
   noSkillTitle: '沒有可用的提問 Skill',
   noSkillDescription: '這個工作區沒有 ask 類別的 skill，因此無法提問。',
   // Only the transcript is named here.
-  // Audience labels come from the ontology that declared them,
-  // so a downstream product names its own.
+  // Audience labels come from the ontology that declared them, so a downstream product names its own.
   view: {
     transcript: '執行紀錄',
   },

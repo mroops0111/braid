@@ -59,7 +59,7 @@ function makeRunRecord(
   } as RunRecord
 }
 
-// 5 minutes after the test-time anchor — reaper marks orphan runs at "now".
+// 5 minutes after the test-time anchor, the "now" at which the reaper marks orphan runs.
 const REAPER_NOW = at(300)
 const clock: Clock = { now: () => REAPER_NOW }
 

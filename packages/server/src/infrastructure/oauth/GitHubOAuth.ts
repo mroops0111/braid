@@ -2,20 +2,21 @@ const AUTH_ENDPOINT = 'https://github.com/login/oauth/authorize'
 const TOKEN_ENDPOINT = 'https://github.com/login/oauth/access_token'
 
 export interface GitHubOAuthConfig {
-  // OAuth client id from the GitHub App.
+  /** OAuth client id from the GitHub App. */
   readonly clientId: string
-  // OAuth client secret.
+  /** OAuth client secret. */
   readonly clientSecret: string
-  // Redirect URI for the source-connection flow.
-  // Must match the App's Callback URL.
+  /**
+   * Redirect URI for the source-connection flow.
+   * Must match the App's Callback URL.
+   */
   readonly redirectUri: string
 }
 
 /**
  * Tokens from the GitHub App user-to-server flow.
  * GitHub rotates the refresh token on every refresh,
- * so a refreshed set always carries a new `refreshToken`,
- * unlike Google which keeps one.
+ * so a refreshed set always carries a new `refreshToken`, unlike Google which keeps one.
  */
 export interface GitHubTokenSet {
   readonly accessToken: string
@@ -27,11 +28,10 @@ export interface GitHubTokenSet {
 /**
  * Minimal GitHub App user-to-server OAuth client, a mirror of GoogleOAuth.
  * Three calls are needed, build the URL, exchange the code, and refresh.
- * GitHub has no PKCE, and a GitHub App fixes its permissions on the App,
- * so there is no `scope` parameter here.
+ * GitHub has no PKCE, and a GitHub App fixes its permissions on the App, so there is no `scope` parameter here.
  *
- * The App must enable expiring user tokens. Without them,
- * GitHub returns no refresh token, and `exchangeCode` throws an error.
+ * The App must enable expiring user tokens.
+ * Without them, GitHub returns no refresh token, and `exchangeCode` throws an error.
  */
 export class GitHubOAuth {
   private readonly fetchFn: typeof globalThis.fetch
@@ -42,8 +42,7 @@ export class GitHubOAuth {
 
   /**
    * Build the URL the user's browser is sent to.
-   * `state` MUST be unique per flow,
-   * the caller stores it until the callback arrives.
+   * `state` MUST be unique per flow, the caller stores it until the callback arrives.
    */
   buildAuthorizationUrl(input: { state: string }): string {
     const params = new URLSearchParams({

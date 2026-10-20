@@ -14,8 +14,7 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
   readonly sync?: (config: z.infer<TSchema>, destination: AbsolutePath, context: SourceLoaderContext) => Promise<SyncReport>
   /**
    * Optional. Declare that this loader's sources can be refreshed by a push.
-   * `upstream` reports where the content lives, host and path,
-   * so a delivery can be matched to a source.
+   * `upstream` reports where the content lives, host and path, so a delivery can be matched to a source.
    * `shouldDispatch` decides whether an event changes this loader's content.
    * Neither names a platform.
    * Loaders that omit this field cannot serve webhooks, the receiver 400s.
@@ -25,7 +24,8 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
     readonly shouldDispatch?: (config: z.infer<TSchema>, delivery: WebhookDelivery) => boolean
   }
   /**
-   * Optional. Turn a location inside a source into a URL on its own host,
+   * Optional.
+   * Turn a location inside a source into a URL on its own host,
    * so evidence can reach the canonical copy instead of the local mirror.
    * Omit it when the host has no web presence, as a local directory has none.
    */
@@ -39,19 +39,14 @@ export interface DefineSourceLoaderInput<TSchema extends z.ZodTypeAny> {
 /**
  * Build a SourceLoader plugin from a declarative spec.
  *
- * The wrapper validates the config against `configSchema`,
- * before each call to `provision` and `sync`,
- * so the loader body always receives a statically-typed config object,
- * and never has to parse it itself.
+ * The wrapper validates the config against `configSchema`, before each call to `provision` and `sync`,
+ * so the loader body always receives a statically-typed config object, and never has to parse it itself.
  *
- * `TSchema` is inferred from the declared schema,
- * so the callback's `config` is `z.infer<TSchema>`,
+ * `TSchema` is inferred from the declared schema, so the callback's `config` is `z.infer<TSchema>`,
  * and a Zod default or transform surfaces as its post-parse shape.
- * For example `z.boolean().default(true)` reaches the callback as `boolean`,
- * not `boolean | undefined`.
+ * For example `z.boolean().default(true)` reaches the callback as `boolean`, not `boolean | undefined`.
  *
- * Loaders must honour the destination boundary,
- * writing only inside the path they were handed.
+ * Loaders must honour the destination boundary, writing only inside the path they were handed.
  */
 export function defineSourceLoaderPlugin<TSchema extends z.ZodTypeAny>(
   input: DefineSourceLoaderInput<TSchema>,

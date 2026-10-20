@@ -1,20 +1,16 @@
 import { z } from 'zod'
 
 /**
- * The closed catalog of capability ids the platform gates on. The server is the
- * authoritative check, Studio reads the same list to show locked affordances.
+ * The closed catalog of capability ids the platform gates on.
+ * The server is the authoritative check, Studio reads the same list to show locked affordances.
  *
  * A capability is named for its resource, never for the surface that shows it,
  * so a page that moves or merges costs no rename here.
- * The verb is one of four, and it says only whether the call changes the
- * resource, never what the call is called.
- * `manage` is the part of a resource that reaches other people,
- * which is a wider scope rather than a stronger write.
+ * The verb is one of four, and it says only whether the call changes the resource, never what the call is called.
+ * `manage` is the part of a resource that reaches other people, which is a wider scope rather than a stronger write.
  *
- * A resource every member may read needs no id at all,
- * since the membership gate upstream has already answered that.
- * Plugins register their own checks under custom string ids,
- * this list is the first-party set.
+ * A resource every member may read needs no id at all, since the membership gate upstream has already answered that.
+ * Plugins register their own checks under custom string ids, this list is the first-party set.
  */
 export const Capability = z.enum([
   // Server scope, no workspace member required.

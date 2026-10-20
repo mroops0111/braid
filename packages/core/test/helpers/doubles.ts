@@ -13,9 +13,9 @@ import { vi } from 'vitest'
 const ZERO_SHA = '0'.repeat(40) as CommitSha
 
 /**
- * Spy double for the full `WorkspaceHistory` port. Every method is a `vi.fn`
- * returning an inert default, so a test can assert on whichever call it cares
- * about, `commit` or `ensureInitialised`, without stubbing the other nine.
+ * Spy double for the full `WorkspaceHistory` port.
+ * Every method is a `vi.fn` returning an inert default, so a test can assert on whichever call it cares about,
+ * `commit` or `ensureInitialised`, without stubbing the other nine.
  */
 export class SpyWorkspaceHistory implements WorkspaceHistory {
   readonly ensureInitialised = vi.fn(async (_workspace: Workspace): Promise<void> => {})

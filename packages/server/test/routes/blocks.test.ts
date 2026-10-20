@@ -31,8 +31,7 @@ async function buildApp() {
         id: CITED,
         status: 'draft',
         // Every node must show where it came from,
-        // and a proposal filed later is validated against the whole graph,
-        // this node included.
+        // and a proposal filed later is validated against the whole graph, this node included.
         metadata: { sourceReferences: [{ sourceId: 'spec' as SourceId, location: { uri: 'a/b.md', startLine: 1 } }] },
       },
     },
@@ -62,8 +61,7 @@ async function readEvents(
 }
 
 /**
- * The credential a run calls with,
- * which is how the server knows whose block this is.
+ * The credential a run calls with, which is how the server knows whose block this is.
  */
 function asRun(runTokens: RunTokenRegistry, runId: string): Record<string, string> {
   return {
@@ -73,8 +71,7 @@ function asRun(runTokens: RunTokenRegistry, runId: string): Record<string, strin
 }
 
 describe('render routes', () => {
-  // A held process outlives a test that threw before releasing it,
-  // and its drain promise never settles.
+  // A held process outlives a test that threw before releasing it, and its drain promise never settles.
   // Released here so one failure cannot leave a handle open for the worker.
   afterEach(endAllSpawned)
 
@@ -214,10 +211,8 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The declaration creates nothing and decides nothing,
-  // so it has nothing to send back,
-  // and a body saying "success" would be paid for in the run's own context,
-  // only to repeat the status line.
+  // The declaration creates nothing and decides nothing, so it has nothing to send back,
+  // and a body saying "success" would be paid for in the run's own context, only to repeat the status line.
   it('answers the no-clarification declaration with no content at all', async () => {
     const { app, workspace, runTokens, startedBy, endAll } = await buildApp()
     const runId = await startRun(app, workspace.id)
@@ -277,8 +272,7 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The run's own reading rests on nothing but itself,
-  // so there is nothing for the graph to settle,
+  // The run's own reading rests on nothing but itself, so there is nothing for the graph to settle,
   // and refusing it would refuse the ordinary case.
   it('records a ref the run read for itself, which the graph cannot settle', async () => {
     const { app, workspace, endAll, runTokens } = await buildApp()
@@ -318,8 +312,7 @@ describe('render routes', () => {
     endAll()
   })
 
-  // The run a block lands on is the one the credential names,
-  // so there is no id left to aim somewhere else.
+  // The run a block lands on is the one the credential names, so there is no id left to aim somewhere else.
   it('refuses to render for a caller carrying no run', async () => {
     const { app, workspace, endAll } = await buildApp()
     await startRun(app, workspace.id)

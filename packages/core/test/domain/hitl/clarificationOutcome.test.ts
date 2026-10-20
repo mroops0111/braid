@@ -35,8 +35,7 @@ describe('outcomeOf', () => {
     expect(outcomeOf(clarification)?.outcome).toBe('skipped')
   })
 
-  // A run parked on this one is still rightly waiting,
-  // so nothing may carry it on yet.
+  // A run parked on this one is still rightly waiting, so nothing may carry it on yet.
   it('reads a question a run is still parked on as unsettled', () => {
     const clarification = makeClarification(WORKSPACE, { answerMode: 'resumes' })
     expect(outcomeOf(clarification)).toBeNull()

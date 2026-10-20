@@ -22,12 +22,11 @@ export function useCanAsk(workspaceId: string | null): boolean {
  * Whether this reader may have a document written, or written again.
  *
  * Writing one is the form's generator skill run on a projected subject,
- * so it is the same question asked of the skills that write,
- * rather than of the surface that shows what they wrote.
+ * so it is the same question asked of the skills that write, rather than of the surface that shows what they wrote.
  * Reading a document asks nothing, since it is a reading of the graph.
  *
- * Hidden skills count here. A generator is hidden because nobody picks it
- * off the Actions list, not because nobody runs it.
+ * Hidden skills count here.
+ * A generator is hidden because nobody picks it off the Actions list, not because nobody runs it.
  */
 export function useCanWriteDocuments(workspaceId: string | null): boolean {
   const policy = useWorkspacePolicy(workspaceId)
@@ -41,10 +40,8 @@ export function useCanWriteDocuments(workspaceId: string | null): boolean {
 /**
  * Where a bare workspace url puts a reader.
  *
- * Ask, because a workspace exists to be asked about,
- * and the graph is the apparatus rather than the point.
- * An empty workspace is the exception, since there is nothing to ask yet,
- * and Graph carries the bootstrap entry.
+ * Ask, because a workspace exists to be asked about, and the graph is the apparatus rather than the point.
+ * An empty workspace is the exception, since there is nothing to ask yet, and Graph carries the bootstrap entry.
  *
  * Undefined while the answer is still unknown, so a caller waits,
  * rather than landing on Graph and jumping to Ask a moment later.
@@ -62,11 +59,10 @@ export function useLandingSurface(workspaceId: string | null): Surface | undefin
  * Which surfaces this reader may open.
  *
  * The sidebar, the command palette, and the `g` chords all ask this,
- * and a shortcut reaching what the sidebar hides is a hole,
- * rather than a convenience.
+ * and a shortcut reaching what the sidebar hides is a hole, rather than a convenience.
  *
- * Build is open to every member, because its board says what the model has
- * made of each document, which is a reading of the graph.
+ * Build is open to every member, because its board says what the model has made of each document,
+ * which is a reading of the graph.
  * What it takes a capability to do there is gated inside the surface.
  */
 export function useSurfaceReach(workspaceId: string | null): (surface: Surface | null) => boolean {

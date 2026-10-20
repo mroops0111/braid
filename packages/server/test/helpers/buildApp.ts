@@ -8,9 +8,9 @@ import { composeApp } from '../../src/composeApp.js'
 const DEFAULT_WORKSPACE_ID = 'w-1' as WorkspaceId
 
 /**
- * Build an app for route tests. Pre-registers a default workspace
- * (`w-1`) on the in-memory repository so handlers that resolve
- * `workspace.ontologyId` (e.g. validation in HITLService) don't 404.
+ * Build an app for route tests.
+ * Pre-registers a default workspace (`w-1`) on the in-memory repository,
+ * so handlers that resolve `workspace.ontologyId` (e.g. validation in HITLService) don't 404.
  * Pass `workspaceIds: []` to start without any registered workspace.
  */
 export async function buildTestApp(options: {

@@ -163,8 +163,8 @@ describe('writing a document is the generator skill run', () => {
   it('lets a maintainer past the gate, so the subject is what answers next', async () => {
     const { app, workspaceId, users } = await buildMultiUserApp()
 
-    // The node does not exist, so a 404 about the subject is the point:
-    // it is the handler answering rather than the gate.
+    // The node does not exist, so a 404 about the subject is the point.
+    // It is the handler answering rather than the gate.
     const response = await app.request(
       `/workspaces/${workspaceId}/views`,
       asUserJson(users.maintainer.id, 'POST', { kind: 'doc', form: 'reference', subject: 'ctx.any' }),

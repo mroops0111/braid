@@ -15,12 +15,10 @@ const EMPTY: Neighborhood = {
 /**
  * One-hop neighborhood around `selectedNodeId`.
  * Pure, the same inputs always yield equivalent sets.
- * Returns empty sets when no node is selected,
- * so consumers do not have to null-check.
+ * Returns empty sets when no node is selected, so consumers do not have to null-check.
  *
  * Consumers use this to dim or hide elements outside the neighborhood.
- * The selected node is included in `neighbors`,
- * so callers can write `neighbors.has(id)` without special-casing it.
+ * The selected node is included in `neighbors`, so callers can write `neighbors.has(id)` without special-casing it.
  */
 export function computeNeighborhood(
   selectedNodeId: NodeId | null,

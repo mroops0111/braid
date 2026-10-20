@@ -15,8 +15,7 @@ function shouldPrettyPrint(): boolean {
 /**
  * Build a Node-side logger tagged with the calling package's name.
  *
- * Convention: `ns` is the bare package name,
- * e.g. `server`, `agent-claude-code`, or `storage-kuzu`,
+ * Convention: `ns` is the bare package name, e.g. `server`, `agent-claude-code`, or `storage-kuzu`,
  * the package the calling file lives in, NOT the package it talks to.
  * Use a sub-namespace like `server/agent` when one package's logs get noisy.
  *

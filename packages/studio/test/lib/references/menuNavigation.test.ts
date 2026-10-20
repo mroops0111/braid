@@ -78,8 +78,7 @@ describe('hiddenMatchCount', () => {
     expect(hiddenMatchCount(5, 2)).toBe(0)
   })
 
-  // A caller tracking no total is saying nothing was cut,
-  // not that everything was.
+  // A caller tracking no total is saying nothing was cut, not that everything was.
   it('treats an absent total as nothing hidden', () => {
     expect(hiddenMatchCount(4, undefined)).toBe(0)
   })
@@ -95,8 +94,7 @@ describe('placeMenu', () => {
     expect(placement.maxHeightPx).toBe(MENU_PREFERRED_HEIGHT_PX)
   })
 
-  // A composer sits at the foot of the page,
-  // so this is the common case rather than an edge one.
+  // A composer sits at the foot of the page, so this is the common case rather than an edge one.
   it('flips up when the caret is near the bottom and there is more room above', () => {
     const placement = placeMenu({ caretTop: 700, caretBottom: 720, viewportHeight: 760, gap })
     expect(placement.flipUp).toBe(true)
@@ -111,8 +109,7 @@ describe('placeMenu', () => {
     expect(placement.maxHeightPx).toBe(MENU_PREFERRED_HEIGHT_PX)
   })
 
-  // Running off screen hides rows the reader cannot scroll back to,
-  // so a cramped menu shrinks and scrolls instead.
+  // Running off screen hides rows the reader cannot scroll back to, so a cramped menu shrinks and scrolls instead.
   it('shrinks to the room it has rather than overflowing', () => {
     const placement = placeMenu({ caretTop: 60, caretBottom: 80, viewportHeight: 200, gap })
     expect(placement.maxHeightPx).toBeLessThan(MENU_PREFERRED_HEIGHT_PX)
@@ -138,8 +135,7 @@ describe('clampMenuLeft', () => {
     expect(clampMenuLeft({ ...container, caretLeft: 150 })).toBe(50)
   })
 
-  // Hanging off the right takes the ids with it,
-  // and those are what a reader picks by.
+  // Hanging off the right takes the ids with it, and those are what a reader picks by.
   it('stops at the right edge rather than running past it', () => {
     expect(clampMenuLeft({ ...container, caretLeft: 550 })).toBe(100)
   })
@@ -160,8 +156,7 @@ describe('clampMenuLeft', () => {
     })).toBe(0)
   })
 
-  // A panel can be wider than the window,
-  // so staying inside the container is not the same as staying on screen.
+  // A panel can be wider than the window, so staying inside the container is not the same as staying on screen.
   it('stops at the window edge even where the container has room', () => {
     expect(clampMenuLeft({
       caretLeft: 900,

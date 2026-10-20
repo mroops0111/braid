@@ -130,8 +130,8 @@ describe('PluginRegistry', () => {
   })
 
   describe('pluginSkills', () => {
-    // The verb comes from the directory basename, the namespace from the
-    // plugin. The loader composes `<skillNamespace>:<verb>`.
+    // The verb comes from the directory basename, the namespace from the plugin.
+    // The loader composes `<skillNamespace>:<verb>`.
     function fakePluginWithSkills(id: string, verbs: readonly string[]): Plugin {
       return {
         ...fakePlugin(id, 'ontology'),

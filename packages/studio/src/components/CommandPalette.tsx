@@ -35,10 +35,8 @@ interface CommandPaletteProps {
 /**
  * Every surface the shell can show, and the source of truth for the type.
  *
- * Written once as values,
- * so the url parser can check against the same list rather than a copy.
- * Kept apart, `activity` was addressable in the shell and not in a url,
- * and nothing said so.
+ * Written once as values, so the url parser can check against the same list rather than a copy.
+ * Kept apart, `activity` was addressable in the shell and not in a url, and nothing said so.
  */
 export const SURFACES = [
   'activity',
@@ -59,13 +57,10 @@ type ChordTarget = { kind: 'surface', surface: Surface | null } | { kind: 'works
 /**
  * A chord goes to a surface the sidebar keeps a row for, and to nothing else.
  *
- * Held to that, every one of them is its own first letter,
- * which is the only mapping a reader can guess.
+ * Held to that, every one of them is its own first letter, which is the only mapping a reader can guess.
  * Widening it past the sidebar would not survive the second letter,
- * since Ask, Actions, and Activity all open with the same one,
- * as do Build and Batch.
- * Those three are reached by name in this palette,
- * and each already has a way in of its own.
+ * since Ask, Actions, and Activity all open with the same one, as do Build and Batch.
+ * Those three are reached by name in this palette, and each already has a way in of its own.
  */
 function chordSecondKey(key: string): ChordTarget | undefined {
   switch (key) {
@@ -82,8 +77,7 @@ function chordSecondKey(key: string): ChordTarget | undefined {
 }
 
 // `as const` keeps labelKey literal so t() validates each against the typed catalog.
-// A shortcut is printed only where `chordSecondKey` answers it,
-// so the hint never promises a key that does nothing.
+// A shortcut is printed only where `chordSecondKey` answers it, so the hint never promises a key that does nothing.
 const SURFACE_ITEMS = [
   { id: null, labelKey: 'shell.commandPalette.graphHome', Icon: Network, shortcut: 'G G' },
   { id: 'ask', labelKey: 'shell.surfaces.ask', Icon: MessageCircleQuestion, shortcut: 'G A' },
@@ -93,8 +87,7 @@ const SURFACE_ITEMS = [
   { id: 'history', labelKey: 'shell.surfaces.history', Icon: GitGraph, shortcut: 'G H' },
   { id: 'settings', labelKey: 'shell.surfaces.settings', Icon: Settings, shortcut: 'G S' },
   // Everything below folds into a surface above.
-  // Each reaches the same records once they are settled,
-  // which is browsing rather than working,
+  // Each reaches the same records once they are settled, which is browsing rather than working,
   // so they keep a way in without taking a sidebar row or a chord for it.
   { id: 'activity', labelKey: 'shell.surfaces.activity', Icon: Activity },
   { id: 'batch', labelKey: 'shell.surfaces.batch', Icon: Boxes },
@@ -146,8 +139,7 @@ export function CommandPalette({
   }, [open, setOpen])
 
   // Linear, Gmail, and GitHub-style `g`-chord navigation.
-  // Press `g`, then within 1s press the second key,
-  // e.g. `g s` for Settings.
+  // Press `g`, then within 1s press the second key, e.g. `g s` for Settings.
   // Ignored while typing into a form so it does not hijack text input.
   const armedRef = useRef<number | null>(null)
   useEffect(() => {
@@ -212,8 +204,7 @@ export function CommandPalette({
             {nodes.map(node => (
               <CommandItem
                 key={node.id}
-                // cmdk scores an item by this value,
-                // and the server already ranked these,
+                // cmdk scores an item by this value, and the server already ranked these,
                 // so carrying the query keeps every result.
                 value={`${query} ${node.id}`}
                 onSelect={() => {

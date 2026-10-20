@@ -24,10 +24,8 @@ export interface SourceUnitObservationsRouterDeps {
   /**
    * Optional `(workspaceService, unitLister, digest)` triple.
    * When all three are present, the router exposes the `:sourceId/diff` route.
-   * When any is missing, the route is simply not registered,
-   * so callers see a 404 from Hono's router.
-   * That matches the unsupported-operation semantics,
-   * other partially-wired surfaces follow (Batch, Skills).
+   * When any is missing, the route is simply not registered, so callers see a 404 from Hono's router.
+   * That matches the unsupported-operation semantics, other partially-wired surfaces follow (Batch, Skills).
    */
   diffSupport?: {
     workspaceService: WorkspaceService

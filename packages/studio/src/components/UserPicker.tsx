@@ -111,8 +111,7 @@ function RenameDialog({
     queryClient.clear()
     onOpenChange(false)
     // Last, because it navigates away.
-    // Without it the identity provider still knows who this is,
-    // and the next sign-in returns without asking.
+    // Without it the identity provider still knows who this is, and the next sign-in returns without asking.
     if (endSessionUrl)
       window.location.href = endSessionUrl
   }

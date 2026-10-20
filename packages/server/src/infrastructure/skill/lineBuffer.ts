@@ -1,8 +1,7 @@
 export type LineHandler = (line: string) => void
 
 /**
- * Splits a chunked text stream into newline-delimited lines,
- * invoking the handler once per complete line.
+ * Splits a chunked text stream into newline-delimited lines, invoking the handler once per complete line.
  * Partial lines are buffered until the next chunk completes them.
  * Call `flush()` after the source closes to release any trailing line without a terminator.
  */

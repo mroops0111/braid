@@ -15,8 +15,7 @@ export function unitBearingRolesOf(registry: PluginRegistry, workspace: Workspac
 }
 
 /**
- * Shared by the Studio source picker and BatchService,
- * so both see the same per-doc granularity.
+ * Shared by the Studio source picker and BatchService, so both see the same per-doc granularity.
  * Walks sources whose role is in `roles`, the ontology's unit-bearing roles.
  */
 export async function listUnitItems(workspace: Workspace, roles: readonly SourceRole[]): Promise<SourceUnitItem[]> {
@@ -51,8 +50,7 @@ async function listUnitEntries(root: string, sourceId: string, sourceName: strin
       const folder = join(root, entry.name)
       // A flat directory of loose markdown files gives one unit per file,
       // so downstream skills run per-document rather than over the bag all at once.
-      // Such layouts include a github loader's issues tree,
-      // or a hand-curated prd folder of onboarding docs.
+      // Such layouts include a github loader's issues tree, or a hand-curated prd folder of onboarding docs.
       // A directory with its own sub-structure stays a single unit,
       // since that structure is the unit's own organisation.
       const flatFiles = await listFlatDocumentFiles(folder)
@@ -90,18 +88,14 @@ async function listUnitEntries(root: string, sourceId: string, sourceName: strin
       })
     }
   }
-  // Newest first, which for a mirror named by upstream id,
-  // means the most recent work rather than the oldest.
+  // Newest first, which for a mirror named by upstream id, means the most recent work rather than the oldest.
   return items.sort((a, b) => byNaturalName(b.label, a.label))
 }
 
-// A flat document directory has every visible entry a markdown file,
-// with no subdirectories.
+// A flat document directory has every visible entry a markdown file, with no subdirectories.
 // For one, returns the sorted list of filenames.
-// Returns `undefined` otherwise, so the caller falls back to treating,
-// the directory as a single unit.
-// "Visible" here excludes dotfiles,
-// so sync state like `.braid-github-cursor.json` doesn't disqualify it.
+// Returns `undefined` otherwise, so the caller falls back to treating, the directory as a single unit.
+// "Visible" here excludes dotfiles, so sync state like `.braid-github-cursor.json` doesn't disqualify it.
 async function listFlatDocumentFiles(dir: string): Promise<string[] | undefined> {
   let entries
   try {
@@ -151,11 +145,9 @@ async function containsDocument(dir: string, maxDepth: number): Promise<boolean>
 /**
  * Orders names the way a reader expects, so `9` precedes `10`.
  * Plain string order puts `10` first,
- * which scrambles any source named by an upstream id,
- * once the numbers pass single digits.
+ * which scrambles any source named by an upstream id, once the numbers pass single digits.
  *
- * The locale is pinned, since the default varies by host,
- * and the order a listing comes back in should not.
+ * The locale is pinned, since the default varies by host, and the order a listing comes back in should not.
  */
 function byNaturalName(left: string, right: string): number {
   return left.localeCompare(right, 'en', { numeric: true })
@@ -168,8 +160,7 @@ const FRONTMATTER_BUDGET = 4096
 /**
  * The document's own title, when its frontmatter carries one.
  * Anything unreadable or unparseable yields nothing,
- * since a listing that fails over one malformed document,
- * is worse than one missing a label.
+ * since a listing that fails over one malformed document, is worse than one missing a label.
  */
 async function readTitle(path: string): Promise<string | undefined> {
   let handle

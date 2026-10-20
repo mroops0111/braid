@@ -50,10 +50,8 @@ async function bootstrap() {
   // On Tauri this round-trips to the OS keyring for each known remote.
   await hydrateTokens(listAllRemoteIds())
   // OAuth callback redirects land here with `#token=<value>` or `#auth-error=<value>`.
-  // Consume the token before mounting,
-  // so App's first render sees the new session.
-  // When the callback started from a per-remote Sign In,
-  // the hash also carries `auth-remote=<remoteId>`,
+  // Consume the token before mounting, so App's first render sees the new session.
+  // When the callback started from a per-remote Sign In, the hash also carries `auth-remote=<remoteId>`,
   // so we store under that remote and switch active to it.
   const redirect = consumeOAuthRedirect()
   if (redirect.token) {

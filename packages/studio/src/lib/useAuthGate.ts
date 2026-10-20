@@ -12,6 +12,7 @@ export type AuthGate = GateLoading | GateLogin | GateAuthenticated
  * Decide whether the main app or the Login page should render.
  *
  * The logic chains through four steps.
+ *
  *   1. Read `/auth/config` to learn the server's mode,
  *      local-trust, remote, or Google-configured.
  *   2. If the server does not require auth the gate is `authenticated`,
