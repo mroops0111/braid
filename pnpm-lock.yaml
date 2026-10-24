@@ -78,6 +78,9 @@ importers:
       '@braidhq/server':
         specifier: workspace:*
         version: link:../server
+      '@braidhq/studio':
+        specifier: workspace:*
+        version: link:../studio
       cac:
         specifier: ^7.1.0
         version: 7.1.0
