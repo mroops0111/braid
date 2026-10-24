@@ -1,4 +1,4 @@
-![Braid. A framework for one reviewed domain model, drafted by agents from your sources.](docs/assets/cover.svg)
+![Braid. AI and your team build one domain model, where AI drafts and asks, and people decide.](docs/assets/cover.svg)
 
 [![CI](https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg)](https://github.com/mroops0111/braid/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
