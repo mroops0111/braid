@@ -25,5 +25,4 @@ packages/desktop/src-tauri/resources
 .internal
 examples
 demo.gif
-architecture.png
-architecture.pen
+docs

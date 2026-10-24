@@ -1,4 +1,4 @@
-# Braid
+![Braid. A framework for one reviewed domain model, drafted by agents from your sources.](docs/assets/cover.svg)
 
 [![CI](https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg)](https://github.com/mroops0111/braid/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
@@ -8,7 +8,7 @@
 
 _A framework for one reviewed model of your domain. Agents draft it from your sources, people decide what lands, and every node cites what it was drawn from._
 
-![Braid Studio: running extract over one issue, reading the evidence and the operations behind a proposal, then applying it](.github/assets/review-loop.webp)
+![Braid Studio: running extract over one issue, reading the evidence and the operations behind a proposal, then applying it](docs/assets/review-loop.webp)
 
 _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
@@ -59,7 +59,7 @@ Of the five axes this is the one a workspace feels, because it decides what the 
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
 
-![Braid architecture](.github/assets/architecture.png)
+![Braid architecture. Studio, Desktop, the CLI, and MCP clients talk to one server. Inside it, source loaders feed skills that an agent runs, each run leaves a clarification or a proposal for a person, and what a person applies lands in the graph, which the reads serve.](docs/assets/architecture.svg)
 
 - **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream and AG-UI beside it. The CLI scaffolds a workspace and boots the stack.
 - **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and the Reactor re-syncs them as they change, wherever a workspace opts in.
@@ -79,13 +79,13 @@ The AI is the author and a person is the reviewer, which is the reverse of the u
 
 The graph is readable on its own, and readable through something that composes an answer out of it.
 
-[![Braid Studio: the command palette answering "how a chat message becomes a reply" with nodes that never use those words](.github/assets/graph-and-ask.png)](.github/assets/graph-and-ask.webp)
+[![Braid Studio: the command palette answering "how a chat message becomes a reply" with nodes that never use those words](docs/assets/graph-and-ask.png)](docs/assets/graph-and-ask.webp)
 
-_The question says message and reply. `Run Turn` and `Conversation Turn Lifecycle` say neither, and they are what it was asking for. [Play the clip](.github/assets/graph-and-ask.webp) to see one opened, then the same question put to Ask._
+_The question says message and reply. `Run Turn` and `Conversation Turn Lifecycle` say neither, and they are what it was asking for. [Play the clip](docs/assets/graph-and-ask.webp) to see one opened, then the same question put to Ask._
 
-[![Braid Studio showing the tutorial written out of one subsystem, with the reference of the same subsystem beside it in the row, both marked out of date](.github/assets/reference-and-tutorial.png)](.github/assets/reference-and-tutorial.webp)
+[![Braid Studio showing the tutorial written out of one subsystem, with the reference of the same subsystem beside it in the row, both marked out of date](docs/assets/reference-and-tutorial.png)](docs/assets/reference-and-tutorial.webp)
 
-_One subject, two forms, both already out of date because the graph moved under them. [Play the clip](.github/assets/reference-and-tutorial.webp) to read down each of them._
+_One subject, two forms, both already out of date because the graph moved under them. [Play the clip](docs/assets/reference-and-tutorial.webp) to read down each of them._
 
 - **The Graph Surface**: the canvas and the table, search, and a node with its evidence and its neighbours. Point an embedding endpoint at a workspace and search ranks by meaning as well as by name, so a question finds a node that never uses its words.
 - **MCP**: a read-only endpoint at `<api>/braid/mcp` carrying seven operations, from node search to the whole snapshot. It exchanges each caller's own token, so a person's client reads the graph as them.
@@ -98,7 +98,14 @@ Get a workspace running, then work the review loop in Studio.
 
 ### Quick Start
 
-Two ways in. Both need the `claude` CLI signed in, since a skill run is a subprocess of it and nothing runs without one.
+Three ways in. All need the `claude` CLI signed in, since a skill run is a subprocess of it and nothing runs without one.
+
+**From npm**, for trying Braid on your own machine. Node 22 or later. One process serves the API and the built Studio on one port.
+
+```bash
+npx @braidhq/cli start
+# Studio and the API at http://localhost:4321
+```
 
 **From a checkout**, for working on Braid itself. Node 22 or later, and pnpm.
 
