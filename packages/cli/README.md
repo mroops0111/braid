@@ -25,9 +25,9 @@ src/
 ├── main.ts            cac command definitions, the braid binary
 └── commands/
     ├── init.ts        scaffold a workspace template on disk
-    ├── start.ts       boot the server with Studio's published files on one port
+    ├── start.ts       run the published Studio and the server on one port, for using Braid
     ├── serve.ts       boot the server via the server package's startServer
-    ├── dev.ts         run server and Studio, monorepo or standalone
+    ├── dev.ts         run Studio from source with live reload beside the server, for working on Braid
     └── workspace.ts   query a running server over HTTP
 ```
 
