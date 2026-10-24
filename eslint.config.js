@@ -16,7 +16,7 @@ export default antfu(
       '**/node_modules',
       '**/.turbo',
       'pnpm-lock.yaml',
-      'docs/**',
+      '.internal/**',
       '**/skills/**/*.md',
       '**/*.tsbuildinfo',
       '**/src-tauri/gen/**',

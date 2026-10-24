@@ -22,7 +22,7 @@ packages/desktop/src-tauri/target
 packages/desktop/src-tauri/resources
 
 # Documentation and Media
-docs
+.internal
 examples
 demo.gif
 architecture.png
