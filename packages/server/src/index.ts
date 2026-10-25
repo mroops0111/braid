@@ -2,6 +2,9 @@ export * from './app.js'
 export * from './composeApp.js'
 export * from './composeFsApp.js'
 export * from './defaultOntologyPlugins.js'
+// Re-exported so `braid init` writes the same ignore rules the server would,
+// keeping the reviewed record under `artifacts/` in history.
+export { WORKSPACE_GITIGNORE } from './infrastructure/history/GitWorkspaceHistory.js'
 export * from './middleware/error.js'
 export * from './startServer.js'
 
