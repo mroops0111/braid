@@ -59,7 +59,7 @@ Of the five axes this is the one a workspace feels, because it decides what the 
 
 The server is the composition root. Sources feed an event-driven engine that produces reviewable changes, a human gate lands them in one canonical model, and every write is versioned in Git.
 
-![Braid architecture. Studio, Desktop, the CLI, and MCP clients talk to one server. Inside it, source loaders feed skills that an agent runs, each run leaves a clarification or a proposal for a person, and what a person applies lands in the graph, which the reads serve.](docs/assets/architecture.svg)
+![Braid architecture. Studio, Desktop, the CLI, and MCP clients talk to one server. Inside it, source loaders feed skills that an agent runs, each run leaves a clarification or a proposal for a person, and what a person applies lands in the graph, which the reads serve. Clarifications, proposals, model.json, and views are all committed to the workspace's git.](docs/assets/architecture.svg)
 
 - **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream and AG-UI beside it. The CLI scaffolds a workspace and boots the stack.
 - **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and the Reactor re-syncs them as they change, wherever a workspace opts in.
