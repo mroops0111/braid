@@ -6,17 +6,17 @@
 [![Node Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmroops0111%2Fbraid%2Fmaster%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=node.js&logoColor=white)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-_A framework for one reviewed model of your domain. Agents draft it from your sources, people decide what lands, and every node cites what it was drawn from._
+_A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
 
 ![Braid Studio: running extract over one issue, reading the evidence and the operations behind a proposal, then applying it](docs/assets/review-loop.webp)
 
 _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
-**A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
+**One model of your domain, written by AI and decided by people.** A team's understanding of its own product is spread across PRDs, issues, threads, and code, and the pieces drift apart every sprint. Braid _braids_ them into one model that everyone reads, and lets an AI do the drafting without letting it decide.
 
-Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
-
-Braid harnesses a coding agent, Claude Code. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused. The harness is what lets an AI be the author here.
+- **The AI Drafts and Asks**: Braid harnesses a coding agent, Claude Code by default. It reads your sources and proposes changes, and where the sources disagree or say nothing, it stops and asks. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused.
+- **People Decide**: nothing lands until a person applies it. Every question, answer, and decision commits to the workspace's Git, so the history says who decided what, and from which source.
+- **The Domain Is a Plugin**: an ontology decides what the model is made of. Braid ships Domain-Driven Design (DDD) as the default, which is why the example speaks in aggregates and rules, but the loop, the gate, and the citations hold for any ontology you write.
 
 ## Features
 
@@ -63,9 +63,10 @@ The server is the composition root. Sources feed an event-driven engine that pro
 
 - **Surfaces**: Studio (web UI), Desktop, and MCP clients all talk to one server, over REST with an SSE event stream and AG-UI beside it. The CLI scaffolds a workspace and boots the stack.
 - **Sources**: Intent and Code are pulled into the workspace by Source Loader plugins, and the Reactor re-syncs them as they change, wherever a workspace opts in.
-- **Engine**: the Agent is a plugin like the rest, and the Skills it runs each see only their own tools. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal or a Clarification, and both land in one queue, because what makes them one kind is who must act next. What a person lands commits to the versioned workspace tree.
-- **Model**: the Ontology types the graph, the graph is the single source of truth, a Storage plugin such as Kuzu persists it, and a `model.json` snapshot travels with the code.
+- **Engine**: the Agent is a plugin like the rest, and the Skills it runs each see only their own tools. Where a run reaches a point only a person can settle it emits a Handoff, either a Proposal or a Clarification, and both land in one queue, because what makes them one kind is who must act next. Every question, answer, and decision commits to the workspace's Git.
+- **Model**: the Ontology types the graph, the graph is the single source of truth, and a Storage plugin such as Kuzu persists it.
 - **Reads**: read-only MCP tools over the graph, Ask for a question a run answers, and Views projected by a generator, one artifact per reason to read.
+- **Git**: each workspace is its own repository. Clarifications, proposals, views, and a `model.json` snapshot rewritten on every apply all commit there. Only derived state, run logs, and re-fetchable sources stay out.
 
 ### AI-Native Design
 
@@ -123,7 +124,7 @@ docker compose up
 # Studio and the API at http://localhost:4321
 ```
 
-Either way, open Studio and create a workspace with the Wizard, then add your intent and code sources.
+Whichever way, open Studio and create a workspace with the Wizard, then add your intent and code sources.
 
 `.env.example` names what a deployment sets and what each value turns on. `compose.oidc.yaml` adds Keycloak for a deployment that wants its own authorization server, which is also what turns the MCP endpoint on. [`@braidhq/server`](packages/server/README.md#deployment) documents every variable the server reads and what each does when absent.
 
