@@ -1,4 +1,5 @@
-import { EventSchemas, EventType } from '@ag-ui/core'
+import { EventType } from '@ag-ui/core'
+import { EventSchemas } from '@ag-ui/core/schemas'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildRunnerApp, endAllSpawned } from '../helpers/runnerApp.js'
 
