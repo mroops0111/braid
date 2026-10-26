@@ -1,10 +1,12 @@
 ![Braid. AI and your team build one domain model, where AI drafts and asks, and people decide.](docs/assets/cover.svg)
 
-[![CI](https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg)](https://github.com/mroops0111/braid/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
-[![npm downloads](https://img.shields.io/npm/dm/@braidhq/cli.svg)](https://www.npmjs.com/package/@braidhq/cli)
-[![Node Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmroops0111%2Fbraid%2Fmaster%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=node.js&logoColor=white)](https://nodejs.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/mroops0111/braid/actions/workflows/ci.yml"><img src="https://github.com/mroops0111/braid/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/@braidhq/cli"><img src="https://img.shields.io/npm/v/@braidhq/cli.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@braidhq/cli"><img src="https://img.shields.io/npm/dm/@braidhq/cli.svg" alt="npm downloads"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmroops0111%2Fbraid%2Fmaster%2Fpackage.json&query=%24.engines.node&label=node&color=339933&logo=node.js&logoColor=white" alt="Node Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
 
 _A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
 
