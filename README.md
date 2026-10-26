@@ -8,17 +8,17 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
-_A harness framework that keeps AI and your team building one domain model together, in a loop where the AI drafts and asks, and people decide._
+_A framework for one reviewed model of your domain. Agents draft it from your sources, people decide what lands, and every node cites what it was drawn from._
 
 ![Braid Studio: running extract over one issue, reading the evidence and the operations behind a proposal, then applying it](docs/assets/review-loop.webp)
 
 _A finished model: [`examples/conciergent`](examples/conciergent/), 120 nodes Braid drew from one codebase with no intent docs._
 
-**One model of your domain, written by AI and decided by people.** A team's understanding of its own product is spread across PRDs, issues, threads, and code, and the pieces drift apart every sprint. Braid _braids_ them into one model that everyone reads, and lets an AI do the drafting without letting it decide.
+**A shared model of your business, not another code graph.** Code is what shipped. Intent is what the team meant. They drift apart every sprint, and the team ends up arguing about which one is right.
 
-- **The AI Drafts and Asks**: Braid harnesses a coding agent, Claude Code by default. It reads your sources and proposes changes, and where the sources disagree or say nothing, it stops and asks. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused.
-- **People Decide**: nothing lands until a person applies it. Every question, answer, and decision commits to the workspace's Git, so the history says who decided what, and from which source.
-- **The Domain Is a Plugin**: an ontology decides what the model is made of. Braid ships Domain-Driven Design (DDD) as the default, which is why the example speaks in aggregates and rules, but the loop, the gate, and the citations hold for any ontology you write.
+Braid _braids_ them back into one domain model that engineers and PMs can both read. The default ontology is Domain-Driven Design (DDD), so people and the AI both speak the ubiquitous language of the domain instead of class names and package paths.
+
+Braid harnesses a coding agent, Claude Code. Each run sees only the tools its kind of run may call, and a node that cites nothing is refused. The harness is what lets an AI be the author here.
 
 ## Features
 
