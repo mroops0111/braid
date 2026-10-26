@@ -35,7 +35,8 @@ const TAG_FORMAT = [
 
 // Intent docs and codebases are re-fetchable.
 // Tracking them would nest foreign `.git/` dirs and bloat history.
-const DEFAULT_GITIGNORE = `# Braid auto-generated.
+// Everything else under `artifacts/` is the reviewed record, so it is tracked.
+export const WORKSPACE_GITIGNORE = `# Braid auto-generated.
 
 .braid/
 .braid-sessions/
@@ -74,7 +75,7 @@ export class GitWorkspaceHistory implements WorkspaceHistory {
 
     const gitignorePath = join(root, '.gitignore')
     if (!existsSync(gitignorePath))
-      await writeFile(gitignorePath, DEFAULT_GITIGNORE, 'utf-8')
+      await writeFile(gitignorePath, WORKSPACE_GITIGNORE, 'utf-8')
 
     await git.add(['-A'])
     // Allow empty when the workspace dir has nothing tracked yet, so HEAD exists for later commits to parent on.

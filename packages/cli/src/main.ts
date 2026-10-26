@@ -5,6 +5,7 @@ import pc from 'picocolors'
 import { devCommand } from './commands/dev.js'
 import { initCommand } from './commands/init.js'
 import { serveCommand } from './commands/serve.js'
+import { startCommand } from './commands/start.js'
 import { workspaceListCommand } from './commands/workspace.js'
 
 // Read from package.json so `braid --version` never drifts from the release.
@@ -24,6 +25,13 @@ cli
       ...(flags.name ? { name: flags.name } : {}),
       ...(flags.force ? { force: flags.force } : {}),
     })
+  })
+
+cli
+  .command('start', 'Run the server with Studio on the same port')
+  .option('--port <port>', 'TCP port to bind (default 4321)', { default: 4321 })
+  .action(async (flags: { port: number }) => {
+    await startCommand({ port: Number(flags.port) })
   })
 
 cli

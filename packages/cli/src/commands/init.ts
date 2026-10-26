@@ -2,7 +2,7 @@ import type { OntologyPlugin, SourceRoleDescriptor } from '@braidhq/server'
 import { access, mkdir, writeFile } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 import process from 'node:process'
-import { defaultOntologyPlugins } from '@braidhq/server'
+import { defaultOntologyPlugins, WORKSPACE_GITIGNORE } from '@braidhq/server'
 import pc from 'picocolors'
 
 export interface InitCommandInput {
@@ -45,7 +45,7 @@ export async function initCommand(input: InitCommandInput): Promise<void> {
   }
 
   await writeFile(productPath, renderProductManifest({ name: workspaceName, ontology }), 'utf-8')
-  await writeFile(`${absoluteDir}/.gitignore`, renderGitignore(), 'utf-8')
+  await writeFile(`${absoluteDir}/.gitignore`, WORKSPACE_GITIGNORE, 'utf-8')
 
   process.stdout.write(`${pc.green('✓')} Created Braid workspace template at ${pc.cyan(absoluteDir)}\n`)
 }
@@ -122,13 +122,5 @@ ${roleLines}
 ## Next
 
 Open Studio and create a workspace via the Wizard.
-`
-}
-
-function renderGitignore(): string {
-  return `artifacts/
-.env
-.braid/
-.braid-sessions/
 `
 }

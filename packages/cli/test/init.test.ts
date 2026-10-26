@@ -31,7 +31,9 @@ describe('initCommand', () => {
 
     const gitignore = await readFile(join(target, '.gitignore'), 'utf-8')
     expect(gitignore).toContain('.braid/')
-    expect(gitignore).toContain('artifacts/')
+    // Clarifications, proposals, and model.json are the reviewed record, so only run logs stay out.
+    expect(gitignore).toContain('artifacts/runs/')
+    expect(gitignore).not.toMatch(/^artifacts\/$/m)
 
     // Every declared role gets a directory keyed by its pathSegment,
     // the required `code` and the optional `intent` alike.

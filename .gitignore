@@ -30,8 +30,8 @@ coverage
 .env.local
 .env.*.local
 
-# Docs
-docs/
+# Internal docs, linked in from project-docs
+.internal
 
 # Example: only the reference workspace and the conciergent showcase are tracked, local experiments are not.
 examples/*
