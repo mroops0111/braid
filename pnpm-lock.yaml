@@ -214,11 +214,11 @@ importers:
   packages/server:
     dependencies:
       '@ag-ui/core':
-        specifier: 0.0.59
-        version: 0.0.59
+        specifier: 1.0.3
+        version: 1.0.3(zod@4.6.7)
       '@ag-ui/encoder':
-        specifier: 0.0.59
-        version: 0.0.59
+        specifier: 1.0.3
+        version: 1.0.3(zod@4.6.7)
       '@braidhq/agent-claude-code':
         specifier: workspace:*
         version: link:../agent-claude-code
@@ -445,8 +445,8 @@ importers:
         specifier: 1.0.3
         version: 1.0.3
       '@ag-ui/core':
-        specifier: 0.0.59
-        version: 0.0.59
+        specifier: 1.0.3
+        version: 1.0.3(zod@4.6.7)
     devDependencies:
       '@braidhq/schema':
         specifier: workspace:*
@@ -618,9 +618,6 @@ packages:
   '@ag-ui/client@1.0.3':
     resolution: {integrity: sha512-pqp6hEiO+gjAKIBSA/g8SzPy17XHZhbKZFK3Q4DhZ7bNLR34xNpPfXogP3bSQrzsKh2hmSc9ZYUutTpe/BQBpw==}
 
-  '@ag-ui/core@0.0.59':
-    resolution: {integrity: sha512-hDgy4ipTqXieT8YG8Mr917Y+FD/f11VK1GefZ5CwTDCuNqS/oTwjJ5l/DZkicThgS8hQW/Y7wPylPBMBJ8BkUg==}
-
   '@ag-ui/core@1.0.3':
     resolution: {integrity: sha512-HdMdZPOqworKlnzLaNktnbNYgIzOPbzt5ow6J4bPhbmHCdpWpCSZQFgkifQkn1zVHgCK1V+pmKc8xtW6FsQZKA==}
     peerDependencies:
@@ -629,14 +626,8 @@ packages:
       zod:
         optional: true
 
-  '@ag-ui/encoder@0.0.59':
-    resolution: {integrity: sha512-wQCzBsStyZMm8nzhTdTx1G0B1C8yv5rbzZLnz1ka/l5LcJEsK3KTounU8CR9l+7QtcpOUUDJKd0xAbyI6gNcSw==}
-
   '@ag-ui/encoder@1.0.3':
     resolution: {integrity: sha512-Uj/znRLejAQ7PWcY/Qio2ucymbJNuiDMKU34aTQV+v0EeB6Up9vj6nHNtH+eAAVSVZADs4/U+8gXVnN0on51ew==}
-
-  '@ag-ui/proto@0.0.59':
-    resolution: {integrity: sha512-X+uvDaegLEHw5kJu8tv2eSqHH8ouat+JCfFokGV1uuMquY8qCEQSlGsM7xzexwX9fujuxgHOWumg5kJDqa0+RA==}
 
   '@ag-ui/proto@1.0.3':
     resolution: {integrity: sha512-L3YVEJN1hCYx3P7Zfrf4e1obA1pwzykkkPZkNHAdcXyUZ05/ezvWCkErnfNoUlER8QCasBwRjKiDjicu3Tt7+g==}
@@ -755,9 +746,6 @@ packages:
   '@bramus/specificity@2.4.3':
     resolution: {integrity: sha512-0GEz8qJWokkUVYQYRukmkSHIFNoBH8QTreeHrAFbvz1XFYc3Y+puhMs8PQ5x8GNugiC2l5jvDBXKLbBIByeSBw==}
     hasBin: true
-
-  '@bufbuild/protobuf@2.14.1':
-    resolution: {integrity: sha512-agRJn3+EJDUe8AvxTx/LnHA/GErvLE62pSaSk7+MwFOtOv8eWBu/qCq2qoZjBjVZ3C2aiFJCveuSs17KMkYGOw==}
 
   '@bufbuild/protobuf@2.16.0':
     resolution: {integrity: sha512-FWa0sPlqYGJgpTs6OxBRcL/AW4JT0OIO+W1ajerluoTVh8CV0B7XM1qsNCRgnkSCkRCgOICKHRQlY17jrsm0+Q==}
@@ -5240,18 +5228,9 @@ snapshots:
       uuid: 11.1.1
       zod: 4.6.7
 
-  '@ag-ui/core@0.0.59':
-    dependencies:
-      zod: 4.6.7
-
   '@ag-ui/core@1.0.3(zod@4.6.7)':
     optionalDependencies:
       zod: 4.6.7
-
-  '@ag-ui/encoder@0.0.59':
-    dependencies:
-      '@ag-ui/core': 0.0.59
-      '@ag-ui/proto': 0.0.59
 
   '@ag-ui/encoder@1.0.3(zod@4.6.7)':
     dependencies:
@@ -5259,12 +5238,6 @@ snapshots:
       '@ag-ui/proto': 1.0.3
     transitivePeerDependencies:
       - zod
-
-  '@ag-ui/proto@0.0.59':
-    dependencies:
-      '@ag-ui/core': 0.0.59
-      '@bufbuild/protobuf': 2.14.1
-      '@protobuf-ts/protoc': 2.11.1
 
   '@ag-ui/proto@1.0.3':
     dependencies:
@@ -5389,8 +5362,6 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
     optional: true
-
-  '@bufbuild/protobuf@2.14.1': {}
 
   '@bufbuild/protobuf@2.16.0': {}
 
