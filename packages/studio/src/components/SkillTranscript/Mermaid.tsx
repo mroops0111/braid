@@ -44,6 +44,9 @@ function loadMermaid() {
       startOnLoad: false,
       securityLevel: 'strict',
       theme: 'base',
+      // Mermaid 12 defaults to ELK and the neo look. Pin the layout and look these diagrams were tuned with.
+      layout: 'dagre',
+      look: 'classic',
       fontFamily: '"Geist Variable", system-ui, sans-serif',
       themeVariables: {
         background: 'transparent',
