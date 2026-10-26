@@ -4,7 +4,6 @@ import type { Surface } from './CommandPalette'
 import { Boxes, FileText, GitGraph, Globe, Inbox, Laptop, Loader2, LogIn, MessageCircleQuestion, Network, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import braidLogo from '@/assets/braid-logo.svg'
 import { useSurfaceReach } from '@/lib/landingSurface'
 import { usePendingClarification, usePendingProposals, useRuns, useSkills } from '@/lib/queries'
 import { setActiveRemoteId, useActiveRemoteId } from '@/lib/remotes'
@@ -14,6 +13,7 @@ import { type RemoteSummary, type RemoteWorkspacesResult, useAllRemoteWorkspaces
 import { useRunningSkills } from '@/lib/useRun'
 import { cn } from '@/lib/utils'
 import { CreateWorkspaceWizard } from './CreateWorkspaceWizard'
+import { BraidLogo } from './icons/BraidLogo'
 import { ListRow } from './ListRow'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { WorkspaceSwatch, WorkspaceSwatchWithPending } from './WorkspaceSwatch'
@@ -121,10 +121,7 @@ export function Sidebar({
             )
           : (
               <>
-                <div className="flex items-center gap-2">
-                  <img src={braidLogo} alt="" className="size-5 shrink-0" />
-                  <span className="text-sm font-semibold tracking-tight">Braid</span>
-                </div>
+                <BraidLogo className="h-5 w-auto shrink-0" />
                 <SidebarIconButton onClick={() => setCollapsed(true)} title={t('shell.sidebar.collapseTooltip')}>
                   <PanelLeftClose className="size-3.5" />
                 </SidebarIconButton>
