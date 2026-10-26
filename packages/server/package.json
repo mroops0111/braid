@@ -29,8 +29,8 @@
     "clean": "rm -rf dist bundle .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ag-ui/core": "0.0.59",
-    "@ag-ui/encoder": "0.0.59",
+    "@ag-ui/core": "1.0.3",
+    "@ag-ui/encoder": "1.0.3",
     "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
     "@braidhq/ontology-ddd": "workspace:*",

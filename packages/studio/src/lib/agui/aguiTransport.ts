@@ -1,6 +1,7 @@
 import type { BaseEvent } from '@ag-ui/client'
 import type { OutputForm } from '@braidhq/schema'
-import { EventSchemas, HttpAgent } from '@ag-ui/client'
+import { HttpAgent } from '@ag-ui/client'
+import { EventSchemas } from '@ag-ui/core/schemas'
 import { getAuthToken } from '../authToken'
 import { getServerUrl } from '../serverUrl'
 

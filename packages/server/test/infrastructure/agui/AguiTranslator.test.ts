@@ -1,5 +1,7 @@
+import type { TextMessageContentEvent, TextMessageEndEvent, TextMessageStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallStartEvent } from '@ag-ui/core'
 import type { SkillEvent } from '@braidhq/schema'
-import { EventSchemas, EventType } from '@ag-ui/core'
+import { EventType } from '@ag-ui/core'
+import { EventSchemas } from '@ag-ui/core/schemas'
 import { BlockId, SkillId, SkillRunId } from '@braidhq/schema'
 import { describe, expect, it } from 'vitest'
 import { AguiTranslator } from '../../../src/infrastructure/agui/AguiTranslator.js'
@@ -52,7 +54,7 @@ describe('aguiTranslator', () => {
 
     const whole = one.translate({ type: 'message', text: 'hello' })
     expect(whole.map(event => event.type)).toEqual([EventType.TEXT_MESSAGE_END])
-    expect(whole[0]).toMatchObject({ messageId: (first[0] as { messageId: string }).messageId })
+    expect(whole[0]).toMatchObject({ messageId: (first[0] as TextMessageStartEvent).messageId })
   })
 
   // A replayed run holds no deltas, so it reads exactly as it did before them.
@@ -85,14 +87,14 @@ describe('aguiTranslator', () => {
       EventType.TEXT_MESSAGE_CONTENT,
       EventType.TEXT_MESSAGE_END,
     ])
-    const ids = new Set(events.map(event => (event as { messageId: string }).messageId))
+    const ids = new Set(events.map(event => (event as TextMessageStartEvent | TextMessageContentEvent | TextMessageEndEvent).messageId))
     expect(ids.size).toBe(1)
   })
 
   it('gives each message its own id', () => {
     const subject = translator()
-    const first = subject.translate({ type: 'message', text: 'one' })[0] as { messageId: string }
-    const second = subject.translate({ type: 'message', text: 'two' })[0] as { messageId: string }
+    const first = subject.translate({ type: 'message', text: 'one' })[0] as TextMessageStartEvent
+    const second = subject.translate({ type: 'message', text: 'two' })[0] as TextMessageStartEvent
     expect(first.messageId).not.toBe(second.messageId)
   })
 
@@ -103,13 +105,13 @@ describe('aguiTranslator', () => {
       EventType.TOOL_CALL_ARGS,
       EventType.TOOL_CALL_END,
     ])
-    expect(events.every(event => (event as { toolCallId: string }).toolCallId === 'call-1')).toBe(true)
-    expect((events[1] as { delta: string }).delta).toBe('{"title":"x"}')
+    expect(events.every(event => (event as ToolCallStartEvent | ToolCallArgsEvent | ToolCallEndEvent).toolCallId === 'call-1')).toBe(true)
+    expect((events[1] as ToolCallArgsEvent).delta).toBe('{"title":"x"}')
   })
 
   it('invents a call id when the agent stream carried none', () => {
     const events = translator().translate({ type: 'tool-call', tool: 'grep', args: {} })
-    expect((events[0] as { toolCallId: string }).toolCallId).toBe('skill-run-1-tool-1')
+    expect((events[0] as ToolCallStartEvent).toolCallId).toBe('skill-run-1-tool-1')
   })
 
   it('carries a block as a namespaced custom event', () => {
