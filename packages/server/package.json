@@ -29,8 +29,8 @@
     "clean": "rm -rf dist bundle .turbo *.tsbuildinfo coverage"
   },
   "dependencies": {
-    "@ag-ui/core": "1.0.3",
-    "@ag-ui/encoder": "1.0.3",
+    "@ag-ui/core": "1.0.5",
+    "@ag-ui/encoder": "1.0.5",
     "@braidhq/agent-claude-code": "workspace:*",
     "@braidhq/core": "workspace:*",
     "@braidhq/ontology-ddd": "workspace:*",
@@ -41,13 +41,13 @@
     "@braidhq/source-loader-mcp": "workspace:*",
     "@braidhq/storage-kuzu": "workspace:*",
     "@braidhq/view-generator-doc": "workspace:*",
-    "@hono/node-server": "^2.1.5",
+    "@hono/node-server": "^2.1.9",
     "@hono/zod-openapi": "^1.6.3",
     "@hono/zod-validator": "^0.9.1",
-    "hono": "^4.13.13",
-    "jose": "^6.2.13",
+    "hono": "^4.13.19",
+    "jose": "^6.2.18",
     "pino": "^10.4.0",
-    "simple-git": "^4.0.2",
+    "simple-git": "^4.1.0",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
